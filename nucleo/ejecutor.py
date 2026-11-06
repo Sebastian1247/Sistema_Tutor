@@ -7,6 +7,15 @@ import tempfile
 
 LIMITE_SEGUNDOS = 5
 
+# El programa del estudiante (y la solución del LLM) corre con un entorno mínimo:
+# si se copiara os.environ, podría leer GROQ_API_KEY, que load_dotenv carga ahí.
+VARIABLES_PERMITIDAS = ("SYSTEMROOT", "PATH", "TEMP", "TMP")
+
+
+def _entorno_seguro():
+    return {nombre: os.environ[nombre] for nombre in VARIABLES_PERMITIDAS
+            if nombre in os.environ}
+
 
 def compilar(codigo):
     """Revisa la sintaxis sin ejecutar. Regresa (ok, mensaje)."""
@@ -31,14 +40,17 @@ def ejecutar(codigo, entrada=""):
         ruta = archivo.name
 
     try:
+        # -I aísla al programa (ignora variables PYTHON* y el directorio actual), por eso
+        # la codificación se fija con -X utf8 y no con PYTHONIOENCODING: sin esto, en
+        # Windows la salida sale en cp1252 y una "ñ" rompe la lectura.
         proceso = subprocess.run(
-            [sys.executable, "-I", ruta],
+            [sys.executable, "-I", "-X", "utf8", ruta],
             input=entrada,
             capture_output=True,
             text=True,
             encoding="utf-8",
             timeout=LIMITE_SEGUNDOS,
-            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            env=_entorno_seguro(),
         )
         salida = proceso.stdout + proceso.stderr.replace(ruta, "tu_programa.py")
         if not salida:
@@ -51,8 +63,6 @@ def ejecutar(codigo, entrada=""):
     finally:
         os.remove(ruta)
 
-
-# --- NUEVO (paso 7) -----------------------------------------------------
 
 def normalizar(texto):
     """Ignora espacios al final de cada línea y líneas vacías al inicio/final."""

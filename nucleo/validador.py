@@ -7,7 +7,7 @@ confiable que su aritmética mental, así que:
   - si la solución da otra salida       -> se corrige la salida esperada
 """
 
-import ejecutor
+from nucleo import ejecutor
 
 
 def _arreglar_saltos(texto):

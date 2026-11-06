@@ -8,13 +8,15 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
+import config
+
 # =====================================================================
 # Pasos 2 y 3: universos y funciones de pertenencia
 # =====================================================================
 
-tiempo = ctrl.Antecedent(np.linspace(0, 60, 601), "tiempo")
-errores = ctrl.Antecedent(np.linspace(0, 15, 151), "errores")
-ayudas = ctrl.Antecedent(np.linspace(0, 10, 101), "ayudas")
+tiempo = ctrl.Antecedent(np.linspace(0, config.TIEMPO_MAXIMO, 601), "tiempo")
+errores = ctrl.Antecedent(np.linspace(0, config.ERRORES_MAXIMOS, 151), "errores")
+ayudas = ctrl.Antecedent(np.linspace(0, config.AYUDAS_MAXIMAS, 101), "ayudas")
 nivel = ctrl.Consequent(np.linspace(0, 10, 1001), "nivel", defuzzify_method="centroid")
 
 tiempo["corto"] = fuzz.trapmf(tiempo.universe, [0, 0, 5, 12])
@@ -88,9 +90,9 @@ sistema = ctrl.ControlSystem(reglas)
 
 def recortar(t, e, a):
     """Recorta las entradas a su universo (ej. 80 min se evalúa como 60)."""
-    return (float(np.clip(t, 0, 60)),
-            float(np.clip(e, 0, 15)),
-            float(np.clip(a, 0, 10)))
+    return (float(np.clip(t, 0, config.TIEMPO_MAXIMO)),
+            float(np.clip(e, 0, config.ERRORES_MAXIMOS)),
+            float(np.clip(a, 0, config.AYUDAS_MAXIMAS)))
 
 
 def fuzzificar(variable, valor):
@@ -114,8 +116,19 @@ def inferir(t, e, a):
     return valor, etiqueta, simulacion
 
 
+def tabla_fuzzificacion(t, e, a):
+    """Paso 1 en forma de tabla: una fila por término de cada entrada."""
+    t, e, a = recortar(t, e, a)
+    filas = []
+    for variable, valor in [(tiempo, t), (errores, e), (ayudas, a)]:
+        for termino, grado in fuzzificar(variable, valor).items():
+            filas.append({"variable": variable.label, "valor": valor,
+                          "término": termino, "grado": round(grado, 3)})
+    return filas
+
+
 def reglas_activadas(t, e, a):
-    """NUEVO (paso 7): reglas con fuerza > 0, para mostrarlas en la interfaz.
+    """Reglas con fuerza > 0, para mostrarlas en la interfaz.
     Fuerza de una regla = mínimo de los grados de sus antecedentes (AND)."""
     t, e, a = recortar(t, e, a)
     gt, ge, ga = fuzzificar(tiempo, t), fuzzificar(errores, e), fuzzificar(ayudas, a)
@@ -132,28 +145,3 @@ def reglas_activadas(t, e, a):
                 "fuerza": round(fuerza, 3),
             })
     return sorted(activas, key=lambda r: r["fuerza"], reverse=True)
-
-
-# =====================================================================
-# Pruebas y gráficas:  python fuzzy_nivel.py
-# =====================================================================
-
-if __name__ == "__main__":
-    casos = [
-        (3, 0, 0, "rápido, sin errores ni ayudas"),
-        (10, 4, 1.5, "ejemplo resuelto a mano"),
-        (18, 5, 3, "todo regular"),
-        (2, 0, 8, "rápido pero con muchas ayudas (veto)"),
-        (45, 10, 7, "lento, muchos errores y ayudas"),
-    ]
-    for t, e, a, descripcion in casos:
-        valor, etiqueta, _ = inferir(t, e, a)
-        print(f"t={t:>4} e={e:>4} a={a:>4} -> nivel={valor:5.2f} ({etiqueta:10}) {descripcion}")
-
-    import matplotlib.pyplot as plt
-    tiempo.view()
-    errores.view()
-    ayudas.view()
-    _, _, simulacion = inferir(10, 4, 1.5)
-    nivel.view(sim=simulacion)
-    plt.show()
