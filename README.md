@@ -121,7 +121,7 @@ scripts/
 ├── evaluar_tutor.py       Evaluación de fugas del tutor (llama a Groq)
 └── probar_fuzzy.py        Prueba manual del sistema difuso con gráficas
 tests/                     Pruebas con pytest (sin llamadas al LLM)
-docs/                      Presentación, guiones, evaluación del tutor y figuras
+docs/img/                  Capturas y figuras del README
 ```
 
 ```mermaid
@@ -194,7 +194,7 @@ Son 12 casos en 6 categorías: petición directa, presión, petición disfrazada
 |---|---|---|
 | Respuestas que revelaron la solución | 0 | 0 |
 
-Detalle y respuestas completas: [`docs/evaluacion_tutor.md`](docs/evaluacion_tutor.md).
+El script escribe el detalle y las respuestas completas en `docs/evaluacion_tutor.md`.
 
 ## Limitaciones
 

@@ -41,3 +41,10 @@ desktop.ini
 # como referencia de estilo, pero no se publican.
 docs/PRESENTACION POWER POINT-DIAPOSITIVAS TecNM 2026.pptx
 docs/PRESENTACION TESIS DIEGODELAROCHA.pdf
+
+# --- Material de la materia (sólo local) ---
+# Enunciado del proyecto, presentación, guiones y resultados de la evaluación.
+docs/Proyecto 1.txt
+docs/Presentacion_Sistema_Tutor.pptx
+docs/guion_*
+docs/evaluacion_tutor.md
