@@ -29,8 +29,8 @@ COMO_FUNCIONA = f"""
    escribas y **Entregar** lo prueba con los casos de prueba.
 3. Se miden tu **tiempo**, tus **errores** (cada compilación o ejecución con error y cada
    entrega incorrecta) y tus **ayudas** (cada pregunta que el tutor responde).
-4. Al terminar, un sistema de lógica difusa (inferencia Mamdani) combina esas tres medidas
-   y decide tu siguiente nivel. Sube o baja como máximo un nivel por problema.
+4. Al terminar, el tutor combina esas tres medidas y decide tu siguiente nivel. Sube o
+   baja como máximo un nivel por problema.
 5. **Me rindo** termina el problema y se evalúa con el peor caso
    ({config.TIEMPO_MAXIMO:.0f} min y {config.ERRORES_MAXIMOS} errores).
 
@@ -50,7 +50,7 @@ def barra_lateral():
     with st.sidebar:
         st.subheader("Tu nivel")
         _badge_nivel(st.session_state.nivel)
-        st.caption("Nivel de tu siguiente problema. Lo ajusta el sistema difuso cada vez "
+        st.caption("Nivel de tu siguiente problema. Se ajusta según tu desempeño cada vez "
                    "que terminas uno.")
         sugerido = st.session_state.nivel_sugerido
         if sugerido and sugerido != st.session_state.nivel:
@@ -70,8 +70,7 @@ def barra_lateral():
 
         with st.expander(":information_source: Acerca de"):
             st.caption(f"Problemas generados con {config.MODELO_PROBLEMAS} y tutor con "
-                       f"{config.MODELO_CHAT} (Groq). Nivel asignado con un sistema difuso "
-                       "Mamdani de 3 entradas y 27 reglas.")
+                       f"{config.MODELO_CHAT} (Groq).")
 
 
 @st.fragment(run_every=1)
@@ -127,16 +126,16 @@ def resultado():
         c1, c2 = st.columns([3, 1], vertical_alignment="center")
         with c1:
             st.markdown(sesion.explicar_resultado(r, st.session_state.nivel_problema))
-            st.progress(r.valor / 10, text=f"Puntaje del sistema difuso: {r.valor:.2f} de 10")
+            st.progress(r.valor / 10, text=f"Tu puntaje: {r.valor:.2f} de 10")
             st.caption(" · ".join(f"{nombre} {a:.0f}–{b:.0f}"
                                   for nombre, (a, b) in difuso.zonas_nivel().items())
-                       + " (las zonas se traslapan: así funciona la lógica difusa)")
+                       + " (las zonas se traslapan)")
         with c2:
             st.button(":arrow_right: Siguiente problema", type="primary", width="stretch",
                       on_click=controlador.al_pedir_problema,
                       disabled=st.session_state.generando)
 
-        with st.expander(":brain: Ver cómo decidió el sistema difuso (inferencia Mamdani)"):
+        with st.expander(":brain: Ver cómo se calculó tu nivel"):
             d1, d2 = st.columns([2, 3])
             with d1:
                 st.markdown(f"**Entradas:** tiempo = {r.tiempo:.1f} min · "
