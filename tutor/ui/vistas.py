@@ -269,8 +269,11 @@ def _consola():
         # Entrada y salida lado a lado (en pantallas chicas se apilan): así los botones
         # quedan pegados al editor y el resultado de cada acción se ve sin desplazarse.
         c_entrada, c_salida = st.columns([2, 3])
+        # Una clave por problema (como el editor): arranca con el ejemplo del problema
+        p = st.session_state.problema
         c_entrada.text_area("Entrada para Ejecutar (lo que leerá input(), un dato por línea)",
-                            key="entrada", height=120)
+                            value=p.ejemplo_entrada if p else "", height=120,
+                            key=controlador.clave_entrada())
         with c_salida:
             st.caption("Salida")
             st.code(st.session_state.consola, language="text")

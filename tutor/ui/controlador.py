@@ -21,7 +21,6 @@ VALORES_INICIALES = {
     "inicio": None,
     "fin": None,                # momento en que terminó el problema
     "codigo": "",
-    "entrada": "",
     "consola": CONSOLA_INICIAL,
     "consola_ok": None,
     "consola_etapa": None,      # compilacion | ejecucion | entrega
@@ -63,7 +62,6 @@ def _reiniciar_problema(problema, correcciones, nivel):
     estado.titulos_previos.append(problema.titulo)
     estado.id_problema += 1
     estado.codigo = problema.codigo_inicial
-    estado.entrada = problema.ejemplo_entrada
     estado.consola = CONSOLA_INICIAL
     estado.consola_ok = None
     estado.consola_etapa = None
@@ -75,6 +73,13 @@ def _reiniciar_problema(problema, correcciones, nivel):
     estado.resultado = None
     estado.fin = None
     estado.inicio = time.time()           # DESPUÉS de generar y validar
+
+
+def clave_entrada():
+    """Clave del cuadro de entrada, una por problema (igual que el editor). Así arranca
+    con el ejemplo sin escribir en session_state antes de que el widget exista: Streamlit
+    borra ese valor si la página se reinicia (st.rerun) antes de dibujarlo."""
+    return f"entrada_{st.session_state.id_problema}"
 
 
 def minutos_transcurridos():
@@ -177,7 +182,7 @@ def al_compilar():
 
 def al_ejecutar():
     _mostrar_en_consola(sesion.procesar_ejecucion(st.session_state.codigo,
-                                                  st.session_state.entrada))
+                                                  st.session_state.get(clave_entrada(), "")))
 
 
 def al_entregar():
@@ -194,6 +199,8 @@ def al_rendirse():
 
 def _finalizar(resuelto):
     """Aquí entra el sistema difuso (inferencia Mamdani en sesion.evaluar_desempeno)."""
+    if st.session_state.terminado:                   # un problema se evalúa una sola vez
+        return
     st.session_state.fin = time.time()               # detiene el reloj
     resultado = sesion.evaluar_desempeno(
         resuelto,
