@@ -24,3 +24,4 @@ MODELO_PROBLEMAS = os.getenv("MODELO_PROBLEMAS", "openai/gpt-oss-120b")
 MODELO_CHAT = os.getenv("MODELO_CHAT", "openai/gpt-oss-20b")
 
 MAX_HISTORIAL = 20               # mensajes del chat que se mandan al tutor
+TIMEOUT_LLM = 30                 # s por llamada; Groq reintenta 2 veces (429, timeout, 5xx)

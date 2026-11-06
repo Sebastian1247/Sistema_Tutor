@@ -1,6 +1,6 @@
 import pytest
 
-from tutor import validador
+from tutor import llm, validador
 from tests.conftest import crear_problema
 
 
@@ -59,7 +59,10 @@ class GeneradorFalso:
 
     def __call__(self, nivel, titulos_previos):
         self.llamadas.append((nivel, list(titulos_previos)))
-        return self.problemas.pop(0)
+        siguiente = self.problemas.pop(0)
+        if isinstance(siguiente, Exception):
+            raise siguiente
+        return siguiente
 
 
 def test_generacion_primer_intento_valido():
@@ -77,8 +80,23 @@ def test_generacion_reintenta_si_la_solucion_no_funciona():
     assert len(generar.llamadas) == 2
 
 
+def test_generacion_reintenta_si_el_json_es_invalido():
+    generar = GeneradorFalso([llm.RespuestaInvalida("json_validate_failed"), crear_problema()])
+    problema, _ = validador.generar_problema_validado("novato", [], generar)
+    assert problema.titulo == "Dígitos pares"
+    assert len(generar.llamadas) == 2
+
+
+def test_generacion_no_reintenta_un_fallo_de_red():
+    # Groq ya reintentó por su cuenta; se propaga para usar el banco local
+    generar = GeneradorFalso([llm.ErrorLLM("sin conexión"), crear_problema()])
+    with pytest.raises(llm.ErrorLLM):
+        validador.generar_problema_validado("novato", [], generar)
+    assert len(generar.llamadas) == 1
+
+
 def test_generacion_se_rinde_despues_de_los_intentos_configurados():
     generar = GeneradorFalso([crear_problema(solucion="print((")] * 3)
-    with pytest.raises(ValueError, match="generó 2 problemas"):
+    with pytest.raises(ValueError, match="en 2 intentos"):
         validador.generar_problema_validado("novato", [], generar, intentos=2)
     assert len(generar.llamadas) == 2

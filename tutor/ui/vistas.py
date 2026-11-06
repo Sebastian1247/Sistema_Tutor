@@ -95,6 +95,9 @@ def generacion():
         if listo:
             st.rerun()                               # redibuja todo con el problema nuevo
 
+    if st.session_state.aviso_generacion and not st.session_state.terminado:
+        st.info(f":package: {st.session_state.aviso_generacion}")
+
     error = st.session_state.error_llm
     if error:
         with st.container(border=True):

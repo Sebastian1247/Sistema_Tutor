@@ -1,0 +1,248 @@
+{
+  "novato": [
+    {
+      "titulo": "Par o impar",
+      "descripcion": "Lee un número entero y muestra si es **par** o **impar**.",
+      "formato_entrada": "Un número entero",
+      "formato_salida": "La palabra par o impar",
+      "ejemplo_entrada": "4",
+      "ejemplo_salida": "par",
+      "casos_prueba": [
+        {"entrada": "4", "salida": "par"},
+        {"entrada": "7", "salida": "impar"},
+        {"entrada": "0", "salida": "par"},
+        {"entrada": "-3", "salida": "impar"}
+      ],
+      "codigo_inicial": "numero = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "numero = int(input())\nif numero % 2 == 0:\n    print('par')\nelse:\n    print('impar')\n"
+    },
+    {
+      "titulo": "El mayor de tres",
+      "descripcion": "Lee tres números enteros, uno por línea, y muestra el mayor.",
+      "formato_entrada": "Tres enteros, uno por línea",
+      "formato_salida": "El mayor de los tres",
+      "ejemplo_entrada": "3\n9\n5",
+      "ejemplo_salida": "9",
+      "casos_prueba": [
+        {"entrada": "3\n9\n5", "salida": "9"},
+        {"entrada": "-1\n-5\n-3", "salida": "-1"},
+        {"entrada": "7\n7\n7", "salida": "7"},
+        {"entrada": "10\n2\n10", "salida": "10"}
+      ],
+      "codigo_inicial": "a = int(input())\nb = int(input())\nc = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "a = int(input())\nb = int(input())\nc = int(input())\nmayor = a\nif b > mayor:\n    mayor = b\nif c > mayor:\n    mayor = c\nprint(mayor)\n"
+    },
+    {
+      "titulo": "Suma de 1 a n",
+      "descripcion": "Lee un entero n (n ≥ 0) y muestra la suma 1 + 2 + ... + n. Si n es 0, la suma es 0.",
+      "formato_entrada": "Un entero n mayor o igual a 0",
+      "formato_salida": "La suma de 1 a n",
+      "ejemplo_entrada": "5",
+      "ejemplo_salida": "15",
+      "casos_prueba": [
+        {"entrada": "5", "salida": "15"},
+        {"entrada": "1", "salida": "1"},
+        {"entrada": "0", "salida": "0"},
+        {"entrada": "100", "salida": "5050"}
+      ],
+      "codigo_inicial": "n = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "n = int(input())\nsuma = 0\nfor i in range(1, n + 1):\n    suma += i\nprint(suma)\n"
+    },
+    {
+      "titulo": "Calificación con letra",
+      "descripcion": "Lee una calificación entera entre 0 y 100 y muestra su letra: **A** si es 90 o más, **B** si es 80 o más, **C** si es 70 o más, **D** si es 60 o más y **F** en otro caso.",
+      "formato_entrada": "Un entero entre 0 y 100",
+      "formato_salida": "Una letra: A, B, C, D o F",
+      "ejemplo_entrada": "95",
+      "ejemplo_salida": "A",
+      "casos_prueba": [
+        {"entrada": "95", "salida": "A"},
+        {"entrada": "80", "salida": "B"},
+        {"entrada": "75", "salida": "C"},
+        {"entrada": "60", "salida": "D"},
+        {"entrada": "59", "salida": "F"}
+      ],
+      "codigo_inicial": "calificacion = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "calificacion = int(input())\nif calificacion >= 90:\n    print('A')\nelif calificacion >= 80:\n    print('B')\nelif calificacion >= 70:\n    print('C')\nelif calificacion >= 60:\n    print('D')\nelse:\n    print('F')\n"
+    },
+    {
+      "titulo": "Tabla de multiplicar",
+      "descripcion": "Lee un entero n y muestra su tabla de multiplicar del 1 al 10, una multiplicación por línea, con el formato `n x i = resultado`.",
+      "formato_entrada": "Un entero n",
+      "formato_salida": "Diez líneas con el formato n x i = resultado",
+      "ejemplo_entrada": "3",
+      "ejemplo_salida": "3 x 1 = 3\n3 x 2 = 6\n3 x 3 = 9\n3 x 4 = 12\n3 x 5 = 15\n3 x 6 = 18\n3 x 7 = 21\n3 x 8 = 24\n3 x 9 = 27\n3 x 10 = 30",
+      "casos_prueba": [
+        {"entrada": "3", "salida": "3 x 1 = 3\n3 x 2 = 6\n3 x 3 = 9\n3 x 4 = 12\n3 x 5 = 15\n3 x 6 = 18\n3 x 7 = 21\n3 x 8 = 24\n3 x 9 = 27\n3 x 10 = 30"},
+        {"entrada": "1", "salida": "1 x 1 = 1\n1 x 2 = 2\n1 x 3 = 3\n1 x 4 = 4\n1 x 5 = 5\n1 x 6 = 6\n1 x 7 = 7\n1 x 8 = 8\n1 x 9 = 9\n1 x 10 = 10"},
+        {"entrada": "0", "salida": "0 x 1 = 0\n0 x 2 = 0\n0 x 3 = 0\n0 x 4 = 0\n0 x 5 = 0\n0 x 6 = 0\n0 x 7 = 0\n0 x 8 = 0\n0 x 9 = 0\n0 x 10 = 0"}
+      ],
+      "codigo_inicial": "n = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "n = int(input())\nfor i in range(1, 11):\n    print(f'{n} x {i} = {n * i}')\n"
+    }
+  ],
+  "intermedio": [
+    {
+      "titulo": "Contar vocales",
+      "descripcion": "Lee una línea de texto y muestra cuántas vocales tiene (a, e, i, o, u), sin importar mayúsculas o minúsculas. El texto no tiene acentos. Escribe una función `contar_vocales(texto)`.",
+      "formato_entrada": "Una línea de texto sin acentos",
+      "formato_salida": "La cantidad de vocales",
+      "ejemplo_entrada": "Hola Mundo",
+      "ejemplo_salida": "4",
+      "casos_prueba": [
+        {"entrada": "Hola Mundo", "salida": "4"},
+        {"entrada": "xyz", "salida": "0"},
+        {"entrada": "AEIOU aeiou", "salida": "10"},
+        {"entrada": "Programacion en Python", "salida": "7"}
+      ],
+      "codigo_inicial": "def contar_vocales(texto):\n    # Escribe tu solución aquí\n    pass\n\n\nprint(contar_vocales(input()))\n",
+      "solucion": "def contar_vocales(texto):\n    total = 0\n    for letra in texto.lower():\n        if letra in 'aeiou':\n            total += 1\n    return total\n\n\nprint(contar_vocales(input()))\n"
+    },
+    {
+      "titulo": "La palabra más larga",
+      "descripcion": "Lee una línea con palabras separadas por espacios y muestra la más larga. Si hay empate, muestra la que aparece primero.",
+      "formato_entrada": "Una línea con una o más palabras",
+      "formato_salida": "La palabra más larga",
+      "ejemplo_entrada": "el gato negro",
+      "ejemplo_salida": "negro",
+      "casos_prueba": [
+        {"entrada": "el gato negro", "salida": "negro"},
+        {"entrada": "sol mar", "salida": "sol"},
+        {"entrada": "python", "salida": "python"},
+        {"entrada": "a bb ccc dd", "salida": "ccc"}
+      ],
+      "codigo_inicial": "palabras = input().split()\n\n# Escribe tu solución aquí\n",
+      "solucion": "palabras = input().split()\nmas_larga = palabras[0]\nfor palabra in palabras[1:]:\n    if len(palabra) > len(mas_larga):\n        mas_larga = palabra\nprint(mas_larga)\n"
+    },
+    {
+      "titulo": "Frecuencia de palabras",
+      "descripcion": "Lee una línea con palabras en minúsculas separadas por espacios y muestra cuántas veces aparece cada una, en orden alfabético, con el formato `palabra: veces`.",
+      "formato_entrada": "Una línea con palabras en minúsculas",
+      "formato_salida": "Una línea por palabra distinta, en orden alfabético: palabra: veces",
+      "ejemplo_entrada": "a b a c b a",
+      "ejemplo_salida": "a: 3\nb: 2\nc: 1",
+      "casos_prueba": [
+        {"entrada": "a b a c b a", "salida": "a: 3\nb: 2\nc: 1"},
+        {"entrada": "hola", "salida": "hola: 1"},
+        {"entrada": "x x x", "salida": "x: 3"},
+        {"entrada": "sol luna sol", "salida": "luna: 1\nsol: 2"}
+      ],
+      "codigo_inicial": "palabras = input().split()\nconteo = {}\n\n# Escribe tu solución aquí\n",
+      "solucion": "palabras = input().split()\nconteo = {}\nfor palabra in palabras:\n    conteo[palabra] = conteo.get(palabra, 0) + 1\nfor palabra in sorted(conteo):\n    print(f'{palabra}: {conteo[palabra]}')\n"
+    },
+    {
+      "titulo": "Promedio sin extremos",
+      "descripcion": "Lee una línea con al menos tres enteros separados por espacios. Quita una sola vez el menor y una sola vez el mayor, y muestra el promedio de los números restantes con dos decimales.",
+      "formato_entrada": "Una línea con al menos tres enteros",
+      "formato_salida": "El promedio con dos decimales",
+      "ejemplo_entrada": "1 2 3 4 5",
+      "ejemplo_salida": "3.00",
+      "casos_prueba": [
+        {"entrada": "1 2 3 4 5", "salida": "3.00"},
+        {"entrada": "10 10 10", "salida": "10.00"},
+        {"entrada": "1 100 50 50", "salida": "50.00"},
+        {"entrada": "1 2 4 8", "salida": "3.00"}
+      ],
+      "codigo_inicial": "numeros = list(map(int, input().split()))\n\n# Escribe tu solución aquí\n",
+      "solucion": "numeros = list(map(int, input().split()))\nnumeros.remove(min(numeros))\nnumeros.remove(max(numeros))\nprint(f'{sum(numeros) / len(numeros):.2f}')\n"
+    },
+    {
+      "titulo": "Invertir el orden de las palabras",
+      "descripcion": "Lee una frase y muéstrala con las palabras en orden inverso, separadas por un espacio.",
+      "formato_entrada": "Una línea con una o más palabras",
+      "formato_salida": "Las mismas palabras en orden inverso",
+      "ejemplo_entrada": "hola mundo feliz",
+      "ejemplo_salida": "feliz mundo hola",
+      "casos_prueba": [
+        {"entrada": "hola mundo feliz", "salida": "feliz mundo hola"},
+        {"entrada": "uno", "salida": "uno"},
+        {"entrada": "a b", "salida": "b a"},
+        {"entrada": "el perro come", "salida": "come perro el"}
+      ],
+      "codigo_inicial": "palabras = input().split()\n\n# Escribe tu solución aquí\n",
+      "solucion": "palabras = input().split()\ninvertidas = []\nfor i in range(len(palabras) - 1, -1, -1):\n    invertidas.append(palabras[i])\nprint(' '.join(invertidas))\n"
+    }
+  ],
+  "avanzado": [
+    {
+      "titulo": "Fibonacci recursivo",
+      "descripcion": "Lee un entero n (0 ≤ n ≤ 20) y muestra el n-ésimo número de Fibonacci, donde F(0) = 0, F(1) = 1 y F(n) = F(n-1) + F(n-2). Resuélvelo con una función **recursiva**.",
+      "formato_entrada": "Un entero n entre 0 y 20",
+      "formato_salida": "El número F(n)",
+      "ejemplo_entrada": "10",
+      "ejemplo_salida": "55",
+      "casos_prueba": [
+        {"entrada": "0", "salida": "0"},
+        {"entrada": "1", "salida": "1"},
+        {"entrada": "10", "salida": "55"},
+        {"entrada": "20", "salida": "6765"}
+      ],
+      "codigo_inicial": "def fibonacci(n):\n    # Escribe tu solución aquí\n    pass\n\n\nprint(fibonacci(int(input())))\n",
+      "solucion": "def fibonacci(n):\n    if n < 2:\n        return n\n    return fibonacci(n - 1) + fibonacci(n - 2)\n\n\nprint(fibonacci(int(input())))\n"
+    },
+    {
+      "titulo": "Ordenar alumnos",
+      "descripcion": "La primera línea tiene un entero n. Siguen n líneas con `nombre calificación`. Muestra los nombres ordenados de mayor a menor calificación; si dos alumnos empatan, ordénalos alfabéticamente.",
+      "formato_entrada": "Un entero n y luego n líneas con nombre y calificación",
+      "formato_salida": "Un nombre por línea, en el orden pedido",
+      "ejemplo_entrada": "3\nana 90\nluis 85\nbeto 90",
+      "ejemplo_salida": "ana\nbeto\nluis",
+      "casos_prueba": [
+        {"entrada": "3\nana 90\nluis 85\nbeto 90", "salida": "ana\nbeto\nluis"},
+        {"entrada": "1\nzoe 70", "salida": "zoe"},
+        {"entrada": "4\ncarla 60\nbruno 75\nalma 75\ndavid 100", "salida": "david\nalma\nbruno\ncarla"}
+      ],
+      "codigo_inicial": "n = int(input())\nalumnos = []\n\n# Escribe tu solución aquí\n",
+      "solucion": "n = int(input())\nalumnos = []\nfor _ in range(n):\n    nombre, calificacion = input().split()\n    alumnos.append((nombre, int(calificacion)))\nfor nombre, _ in sorted(alumnos, key=lambda a: (-a[1], a[0])):\n    print(nombre)\n"
+    },
+    {
+      "titulo": "Búsqueda binaria",
+      "descripcion": "La primera línea tiene enteros ordenados de menor a mayor, separados por espacios; la segunda, el número a buscar. Muestra la posición (empezando en 0) donde está, o -1 si no está. Usa **búsqueda binaria**.",
+      "formato_entrada": "Una línea con enteros ordenados y otra con el número a buscar",
+      "formato_salida": "La posición del número o -1",
+      "ejemplo_entrada": "1 3 5 7 9\n7",
+      "ejemplo_salida": "3",
+      "casos_prueba": [
+        {"entrada": "1 3 5 7 9\n7", "salida": "3"},
+        {"entrada": "2 4 6\n5", "salida": "-1"},
+        {"entrada": "10\n10", "salida": "0"},
+        {"entrada": "1 2 3 4 5 6 7 8\n1", "salida": "0"},
+        {"entrada": "1 2 3 4 5 6 7 8\n8", "salida": "7"}
+      ],
+      "codigo_inicial": "numeros = [int(x) for x in input().split()]\nbuscado = int(input())\n\n# Escribe tu solución aquí\n",
+      "solucion": "numeros = [int(x) for x in input().split()]\nbuscado = int(input())\ninicio, fin = 0, len(numeros) - 1\nposicion = -1\nwhile inicio <= fin:\n    medio = (inicio + fin) // 2\n    if numeros[medio] == buscado:\n        posicion = medio\n        break\n    if numeros[medio] < buscado:\n        inicio = medio + 1\n    else:\n        fin = medio - 1\nprint(posicion)\n"
+    },
+    {
+      "titulo": "Paréntesis balanceados",
+      "descripcion": "Lee una línea formada sólo por los símbolos ( ) [ ] { } y muestra **si** cuando están balanceados (cada apertura se cierra con su pareja y en el orden correcto) o **no** en otro caso. Sugerencia: usa una pila.",
+      "formato_entrada": "Una línea con los símbolos ( ) [ ] { }",
+      "formato_salida": "si o no",
+      "ejemplo_entrada": "([]{})",
+      "ejemplo_salida": "si",
+      "casos_prueba": [
+        {"entrada": "([]{})", "salida": "si"},
+        {"entrada": "([)]", "salida": "no"},
+        {"entrada": "((", "salida": "no"},
+        {"entrada": "{[()()]}", "salida": "si"},
+        {"entrada": ")(", "salida": "no"}
+      ],
+      "codigo_inicial": "texto = input().strip()\n\n# Escribe tu solución aquí\n",
+      "solucion": "texto = input().strip()\npareja = {')': '(', ']': '[', '}': '{'}\npila = []\nbalanceado = True\nfor simbolo in texto:\n    if simbolo in '([{':\n        pila.append(simbolo)\n    elif not pila or pila.pop() != pareja[simbolo]:\n        balanceado = False\n        break\nprint('si' if balanceado and not pila else 'no')\n"
+    },
+    {
+      "titulo": "Rotar una matriz",
+      "descripcion": "La primera línea tiene un entero n; siguen n líneas con n enteros separados por espacios. Muestra la matriz rotada 90° en el sentido de las manecillas del reloj, con los números de cada fila separados por un espacio.",
+      "formato_entrada": "Un entero n y luego n líneas con n enteros",
+      "formato_salida": "n líneas con la matriz rotada",
+      "ejemplo_entrada": "2\n1 2\n3 4",
+      "ejemplo_salida": "3 1\n4 2",
+      "casos_prueba": [
+        {"entrada": "2\n1 2\n3 4", "salida": "3 1\n4 2"},
+        {"entrada": "1\n5", "salida": "5"},
+        {"entrada": "3\n1 2 3\n4 5 6\n7 8 9", "salida": "7 4 1\n8 5 2\n9 6 3"}
+      ],
+      "codigo_inicial": "n = int(input())\nmatriz = [input().split() for _ in range(n)]\n\n# Escribe tu solución aquí\n",
+      "solucion": "n = int(input())\nmatriz = [input().split() for _ in range(n)]\nfor columna in range(n):\n    print(' '.join(matriz[fila][columna] for fila in range(n - 1, -1, -1)))\n"
+    }
+  ]
+}

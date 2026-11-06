@@ -1,5 +1,5 @@
 # Prompts del LLM. Son contenido, no código: se editan aquí sin tocar llm.py.
-# Las llaves {nivel}, {temas}, etc. las llena LangChain al invocar.
+# Las llaves {nivel}, {conceptos}, etc. las llena LangChain al invocar.
 # Cadenas literales (''') : el texto se toma tal cual, sin secuencias de escape.
 
 [problema]
@@ -8,15 +8,34 @@ Eres un profesor de programación en Python que diseña ejercicios para un siste
 '''
 usuario = '''
 Genera UN problema de nivel {nivel}.
-Temas apropiados para ese nivel: {temas}.
+Criterios de dificultad que el problema y su solución DEBEN cumplir:
+- Conceptos permitidos: {conceptos}.
+- Tamaño: {pasos}.
+- Estructuras de datos: {estructuras}.
+- No uses: {evitar}.
 El programa debe leer sus datos con input() e imprimir el resultado con print(), para poder verificarlo con casos de prueba automáticos.
 No repitas estos problemas: {previos}.
 '''
 
-[problema.temas]
-novato = "variables, input/print, operadores, if/else y ciclos for/while sencillos"
-intermedio = "listas, diccionarios, cadenas, funciones y ciclos anidados"
-avanzado = "recursión, comprensiones de listas, clases, ordenamiento y búsqueda"
+# Criterios concretos por nivel: le dan significado al nivel que asigna el
+# sistema difuso. El banco local (banco_problemas.json) sigue los mismos.
+[problema.criterios.novato]
+conceptos = "variables, input(), print(), conversión con int() o float(), operadores aritméticos y de comparación, if/elif/else y un solo ciclo for o while"
+pasos = "entre 2 y 4 pasos lógicos; la solución cabe en 3 a 12 líneas"
+estructuras = "sólo números y cadenas simples"
+evitar = "listas, diccionarios, funciones definidas con def, ciclos anidados, recursión, clases ni import"
+
+[problema.criterios.intermedio]
+conceptos = "cadenas y sus métodos (split, join, lower), listas, diccionarios, funciones con def y return, y ciclos anidados"
+pasos = "entre 4 y 7 pasos lógicos; la solución cabe en 8 a 25 líneas"
+estructuras = "listas y diccionarios; la entrada puede ser una línea con varios valores separados por espacios"
+evitar = "recursión, clases ni import"
+
+[problema.criterios.avanzado]
+conceptos = "recursión, comprensiones de listas, ordenamiento con sorted y key, búsqueda binaria, pilas y clases sencillas"
+pasos = "un algoritmo no trivial de 7 o más pasos lógicos; la solución cabe en 10 a 40 líneas"
+estructuras = "listas de listas, diccionarios anidados, tuplas o conjuntos"
+evitar = "módulos fuera de la biblioteca estándar y entradas de más de 100 líneas"
 
 [tutor]
 sistema = '''

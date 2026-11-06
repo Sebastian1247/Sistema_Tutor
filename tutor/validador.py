@@ -58,13 +58,13 @@ def generar_problema_validado(nivel, titulos_previos, generar,
                               intentos=config.INTENTOS_GENERACION):
     """generar(nivel, titulos_previos) -> Problema. Se recibe como parámetro
     (inyección de dependencias): así se prueba con un generador falso, sin gastar cuota.
-    Regresa (problema, correcciones). Lanza ValueError si ningún intento sirve."""
+    Un intento falla si la solución no funciona o si generar lanza ValueError
+    (por ejemplo, JSON inválido del LLM). Regresa (problema, correcciones).
+    Lanza ValueError si ningún intento sirve."""
     ultimo_error = None
     for _ in range(intentos):
-        problema = generar(nivel, titulos_previos)
         try:
-            return validar_problema(problema)
+            return validar_problema(generar(nivel, titulos_previos))
         except ValueError as error:
             ultimo_error = error
-    raise ValueError(f"el LLM generó {intentos} problemas cuya solución "
-                     f"no funciona ({ultimo_error})")
+    raise ValueError(f"no se obtuvo un problema válido en {intentos} intentos ({ultimo_error})")

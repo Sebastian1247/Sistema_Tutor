@@ -8,13 +8,10 @@ import time
 
 import streamlit as st
 
-from tutor import llm, sesion, validador
+from tutor import banco, llm, sesion, validador
 
 CONSOLA_INICIAL = "Aquí aparecerá la salida de tu programa."
 
-MENSAJE_CUOTA_PROBLEMA = ("Se alcanzó el límite del plan gratuito de Groq. "
-                          "Espera un minuto e intenta de nuevo; si persiste, "
-                          "se agotó la cuota del día.")
 MENSAJE_CUOTA_TUTOR = ("Se alcanzó el límite del plan gratuito de Groq. "
                        "Espera un minuto y vuelve a preguntar.")
 
@@ -36,6 +33,7 @@ VALORES_INICIALES = {
     "titulos_previos": [],
     "generando": False,         # se pidió un problema y falta generarlo
     "error_llm": None,          # {"mensaje": para el estudiante, "detalle": técnico}
+    "aviso_generacion": None,   # el problema vino del banco local y por qué
     "chat": [],
     "correcciones": [],         # salidas del LLM corregidas por el validador
     "resultados_pruebas": None, # resultado de Entregar
@@ -92,6 +90,7 @@ def al_pedir_problema():
     la página (generar_pendiente) para mostrar el avance en su lugar, no arriba."""
     st.session_state.generando = True
     st.session_state.error_llm = None
+    st.session_state.aviso_generacion = None
 
 
 def generar_pendiente(avance):
@@ -114,23 +113,41 @@ def generar_pendiente(avance):
                             f"{len(problema.casos_prueba)} casos de prueba...")
         return problema
 
+    previos = st.session_state.titulos_previos
     try:
-        problema, correcciones = validador.generar_problema_validado(
-            nivel, st.session_state.titulos_previos, generar=generar)
-    except llm.ErrorCuota as error:
-        _error_generacion(MENSAJE_CUOTA_PROBLEMA, error)
-    except llm.ErrorLLM as error:
-        _error_generacion("El servicio del LLM no respondió bien (sin conexión o respuesta "
-                          "inválida). Revisa tu conexión e intenta de nuevo.", error)
-    except ValueError as error:
-        _error_generacion("El LLM generó problemas cuya solución de referencia no funciona, "
-                          "así que se descartaron. Intenta de nuevo.", error)
+        problema, correcciones = validador.generar_problema_validado(nivel, previos, generar)
+        aviso = None
+    except (llm.ErrorLLM, ValueError) as error:
+        # Sin LLM (cuota, red o respuestas inválidas): se usa el banco local, que es
+        # otro generador con la misma firma y pasa por el mismo validador.
+        avance.update(label="Sin LLM: tomando un problema del banco local...")
+        try:
+            problema, correcciones = validador.generar_problema_validado(
+                nivel, previos, banco.problema_del_banco)
+        except Exception as error_banco:
+            _error_generacion("No se pudo obtener un problema del LLM ni del banco local.",
+                              error_banco)
+            return False
+        aviso = _motivo_respaldo(error)
+        if problema.titulo in previos:
+            aviso += " Ya viste todos los problemas de este nivel del banco; este se repite."
     except Exception as error:
         _error_generacion("Ocurrió un error inesperado al generar el problema.", error)
+        return False
+
+    _reiniciar_problema(problema, correcciones, nivel)
+    st.session_state.aviso_generacion = aviso
+    return True
+
+
+def _motivo_respaldo(error):
+    if isinstance(error, llm.ErrorCuota):
+        motivo = "Se alcanzó el límite del plan gratuito de Groq"
+    elif isinstance(error, ValueError):                  # incluye RespuestaInvalida
+        motivo = "El LLM no generó un problema válido"
     else:
-        _reiniciar_problema(problema, correcciones, nivel)
-        return True
-    return False
+        motivo = "No hubo conexión con el LLM"
+    return f"{motivo}, así que se usó un problema del banco local."
 
 
 def _error_generacion(mensaje, error):
