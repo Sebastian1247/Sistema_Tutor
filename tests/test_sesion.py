@@ -1,3 +1,5 @@
+"""Pruebas de las reglas del flujo: errores, entrega, nivel y explicación."""
+
 import pytest
 
 from tutor import config, difuso, sesion

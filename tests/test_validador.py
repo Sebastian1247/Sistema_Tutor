@@ -1,3 +1,8 @@
+"""Pruebas del validador: problemas generados y fuga de la solución en el tutor.
+
+El generador y el tutor se sustituyen por versiones falsas: cero llamadas a Groq.
+"""
+
 import pytest
 
 from tutor import llm, validador
@@ -22,7 +27,8 @@ def test_corrige_la_salida_esperada_que_el_llm_calculo_mal():
 
 def test_arregla_saltos_de_linea_escritos_como_texto():
     solucion = "a = int(input())\nb = int(input())\nprint(a + b)\nprint(a * b)"
-    problema = crear_problema(solucion=solucion, casos=[("2\\n3", "5\\n6")], ejemplo=("1\\n1", "2\\n1"))
+    problema = crear_problema(solucion=solucion, casos=[("2\\n3", "5\\n6")],
+                              ejemplo=("1\\n1", "2\\n1"))
     problema, correcciones = validador.validar_problema(problema)
     assert problema.casos_prueba[0].entrada == "2\n3"
     assert problema.casos_prueba[0].salida == "5\n6"
@@ -53,6 +59,8 @@ def test_descarta_solucion_que_truena_con_el_ejemplo():
 # --- generar_problema_validado: con un generador falso, cero llamadas a Groq ---
 
 class GeneradorFalso:
+    """Sustituto de ``llm.generar_problema``: entrega (o lanza) los elementos en orden."""
+
     def __init__(self, problemas):
         self.problemas = list(problemas)
         self.llamadas = []
@@ -135,6 +143,8 @@ def test_detecta_cuando_solo_completa_el_cuerpo_de_la_funcion():
 
 
 class TutorFalso:
+    """Sustituto de ``llm.pedir_ayuda``: entrega las respuestas en orden y guarda historiales."""
+
     def __init__(self, respuestas):
         self.respuestas, self.historiales = list(respuestas), []
 

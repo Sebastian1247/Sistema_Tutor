@@ -1,3 +1,5 @@
+"""Pruebas del sistema de inferencia difusa Mamdani."""
+
 import pytest
 
 from tutor import difuso

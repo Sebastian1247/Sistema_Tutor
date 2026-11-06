@@ -1,7 +1,8 @@
-"""Conceptos del dominio: el problema, sus casos de prueba y el resultado de resolverlo.
+"""Modelos del dominio: el problema, sus casos de prueba y el resultado.
 
-Problema y CasoPrueba también son el "contrato" que el LLM está obligado a
-devolver: las descripciones de los campos se envían en el esquema JSON.
+``Problema`` y ``CasoPrueba`` también son el contrato que el LLM está obligado
+a cumplir: las descripciones de sus campos se envían como esquema JSON en la
+salida estructurada (ver ``tutor.llm``).
 """
 
 from dataclasses import dataclass
@@ -10,12 +11,16 @@ from pydantic import BaseModel, Field
 
 
 class CasoPrueba(BaseModel):
+    """Un caso de prueba: lo que recibe el programa y lo que debe imprimir."""
+
     entrada: str = Field(description="Texto que recibe el programa por input(). "
                                      "Si son varias líneas, sepáralas con \\n")
     salida: str = Field(description="Texto EXACTO que imprime una solución correcta")
 
 
 class Problema(BaseModel):
+    """Un problema de programación con su solución de referencia."""
+
     titulo: str = Field(description="Título corto del problema")
     descripcion: str = Field(description="SOLO el enunciado del problema, en español y en "
                                          "Markdown. NO incluyas secciones de entrada, salida "
@@ -32,16 +37,36 @@ class Problema(BaseModel):
 
 @dataclass
 class Resultado:
-    """Decisión del sistema difuso al terminar un problema."""
+    """Decisión del sistema difuso al terminar un problema.
+
+    Attributes:
+        resuelto: True si el estudiante pasó todos los casos; False si se rindió.
+        tiempo: Minutos usados (``TIEMPO_MAXIMO`` si se rindió).
+        errores: Errores contados (al menos ``ERRORES_MAXIMOS`` si se rindió).
+        ayudas: Preguntas que respondió el tutor.
+        valor: Salida nítida de la inferencia (centroide), entre 0 y 10.
+        recomendado: Nivel que corresponde a ``valor``.
+        siguiente: Nivel del próximo problema (máximo un escalón de diferencia).
+    """
+
     resuelto: bool
-    tiempo: float           # min (60 si se rindió)
+    tiempo: float
     errores: int
     ayudas: int
-    valor: float            # salida nítida (centroide) en [0, 10]
-    recomendado: str        # nivel que sugiere el sistema difuso
-    siguiente: str          # nivel del próximo problema (máximo un escalón)
+    valor: float
+    recomendado: str
+    siguiente: str
 
     def fila_historial(self, titulo, nivel):
+        """Convierte el resultado en una fila de la tabla del historial.
+
+        Args:
+            titulo: Título del problema terminado.
+            nivel: Nivel con el que se planteó el problema.
+
+        Returns:
+            Diccionario con una columna por dato, listo para ``st.dataframe``.
+        """
         return {
             "problema": titulo,
             "nivel": nivel,

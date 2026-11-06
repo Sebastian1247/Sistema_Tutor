@@ -1,12 +1,14 @@
-"""Valida lo que produce el LLM ejecutándolo, en lugar de confiar en él.
+"""Validación de lo que produce el LLM, ejecutándolo en lugar de confiar en él.
 
-1. Problemas generados: el LLM puede equivocarse al calcular "de cabeza" las
-   salidas esperadas (ej. 48392 -> dijo 2 dígitos pares, son 3), así que:
-     - si la solución no compila o truena  -> el problema se descarta
-     - si la solución da otra salida       -> se corrige la salida esperada
-   Si el problema se descarta, generar_problema_validado pide otro.
-2. Respuestas del tutor: si el código que muestra pasa los casos de prueba,
-   reveló la solución; respuesta_segura la bloquea.
+Problemas generados
+    El LLM puede equivocarse al calcular "de cabeza" las salidas esperadas
+    (por ejemplo, decir que 48392 tiene 2 dígitos pares cuando son 3). Por eso
+    se ejecuta la solución de referencia: si no compila o falla, el problema se
+    descarta; si da otra salida, se corrige la salida esperada.
+
+Respuestas del tutor
+    Si el código de una respuesta pasa todos los casos de prueba, la respuesta
+    revela la solución y se bloquea antes de llegar al estudiante.
 """
 
 import ast
@@ -16,27 +18,38 @@ from tutor import config, ejecutor
 
 
 def _arreglar_saltos(texto):
-    """A veces el LLM escribe '\\n' como texto en lugar de un salto de línea real."""
+    """Convierte en saltos reales los ``\\n`` que el LLM a veces escribe como texto."""
     return texto.replace("\\n", "\n")
 
 
 def validar_problema(problema):
-    """Regresa (problema, correcciones). Lanza ValueError si la solución no sirve."""
+    """Comprueba un problema ejecutando su solución de referencia.
+
+    Modifica el problema: normaliza los saltos de línea y reemplaza las salidas
+    esperadas que no coinciden con lo que imprime la solución.
+
+    Args:
+        problema: ``Problema`` generado por el LLM o tomado del banco.
+
+    Returns:
+        Tupla ``(problema, correcciones)``, donde ``correcciones`` describe cada
+        salida esperada que se corrigió.
+
+    Raises:
+        ValueError: Si la solución no compila o falla en algún caso o en el ejemplo.
+    """
     correcciones = []
 
-    # 1. Normalizar saltos de línea
     problema.ejemplo_entrada = _arreglar_saltos(problema.ejemplo_entrada)
     problema.ejemplo_salida = _arreglar_saltos(problema.ejemplo_salida)
     for caso in problema.casos_prueba:
         caso.entrada = _arreglar_saltos(caso.entrada)
         caso.salida = _arreglar_saltos(caso.salida)
 
-    # 2. La solución debe compilar
     ok, mensaje = ejecutor.compilar(problema.solucion)
     if not ok:
         raise ValueError(f"La solución de referencia no compila: {mensaje}")
 
-    # 3. Ejecutar la solución con cada caso de prueba
     for i, caso in enumerate(problema.casos_prueba, start=1):
         ok, salida = ejecutor.ejecutar(problema.solucion, caso.entrada)
         if not ok:
@@ -46,7 +59,7 @@ def validar_problema(problema):
                                 f"la solución da '{salida.strip()}'")
             caso.salida = salida.strip()
 
-    # 4. Lo mismo con el ejemplo que ve el estudiante
+    # El ejemplo es lo que ve el estudiante: se verifica igual que los casos.
     ok, salida = ejecutor.ejecutar(problema.solucion, problema.ejemplo_entrada)
     if not ok:
         raise ValueError("La solución de referencia falla con el ejemplo")
@@ -60,11 +73,26 @@ def validar_problema(problema):
 
 def generar_problema_validado(nivel, titulos_previos, generar,
                               intentos=config.INTENTOS_GENERACION):
-    """generar(nivel, titulos_previos) -> Problema. Se recibe como parámetro
-    (inyección de dependencias): así se prueba con un generador falso, sin gastar cuota.
-    Un intento falla si la solución no funciona o si generar lanza ValueError
-    (por ejemplo, JSON inválido del LLM). Regresa (problema, correcciones).
-    Lanza ValueError si ningún intento sirve."""
+    """Pide problemas hasta obtener uno cuya solución funcione.
+
+    El generador se recibe como parámetro (inyección de dependencias): puede
+    ser ``llm.generar_problema``, ``banco.problema_del_banco`` o un generador
+    falso en las pruebas.
+
+    Args:
+        nivel: Nivel del problema (``"novato"``, ``"intermedio"`` o ``"avanzado"``).
+        titulos_previos: Títulos ya vistos en la sesión, para no repetirlos.
+        generar: Función ``generar(nivel, titulos_previos) -> Problema``. Si lanza
+            ``ValueError`` (por ejemplo, JSON inválido del LLM) cuenta como un
+            intento fallido.
+        intentos: Número máximo de problemas que se piden.
+
+    Returns:
+        Tupla ``(problema, correcciones)`` del primer problema válido.
+
+    Raises:
+        ValueError: Si ningún intento produce un problema válido.
+    """
     ultimo_error = None
     for _ in range(intentos):
         try:
@@ -74,9 +102,7 @@ def generar_problema_validado(nivel, titulos_previos, generar,
     raise ValueError(f"no se obtuvo un problema válido en {intentos} intentos ({ultimo_error})")
 
 
-# =====================================================================
-# Respuestas del tutor: detectar y bloquear la fuga de la solución
-# =====================================================================
+# --- Respuestas del tutor: detectar y bloquear la fuga de la solución ---
 
 PISTA_FIJA = ("No puedo darte la solución, pero sí ayudarte a llegar a ella. Divide el "
               "problema en pasos: ¿qué datos lees, qué debes calcular con ellos y qué "
@@ -90,12 +116,16 @@ AVISO_REGENERAR = ("[Aviso del sistema] Tu respuesta anterior incluía código q
 
 
 def extraer_codigo(texto):
-    """Bloques de código Markdown (```python ... ```) de una respuesta."""
+    """Regresa el contenido de los bloques de código Markdown (```` ``` ````) del texto."""
     return [b.strip() for b in re.findall(r"```[^\n`]*\n(.*?)```", texto, re.DOTALL) if b.strip()]
 
 
 def _sin_definiciones(codigo, nombres):
-    """El código del estudiante sin las funciones o clases que el tutor redefine."""
+    """Quita del código las funciones y clases cuyos nombres están en ``nombres``.
+
+    Returns:
+        El código resultante, o None si el código no se puede analizar.
+    """
     try:
         arbol = ast.parse(codigo)
     except SyntaxError:
@@ -106,8 +136,13 @@ def _sin_definiciones(codigo, nombres):
 
 
 def _candidatos(bloques, codigo_estudiante):
-    """Programas a probar: cada bloque, todos juntos y cada bloque completado con el
-    código del estudiante (caso "sólo completa el cuerpo de la función")."""
+    """Arma los programas que se ejecutan para buscar una fuga.
+
+    Incluye cada bloque, todos los bloques juntos y cada bloque completado con
+    el código del estudiante. Lo último cubre el caso "sólo completa el cuerpo
+    de la función": el bloque solo no imprime nada, pero con el resto del
+    programa del estudiante sí resuelve el problema.
+    """
     candidatos = list(bloques)
     if len(bloques) > 1:
         candidatos.append("\n\n".join(bloques))
@@ -124,7 +159,16 @@ def _candidatos(bloques, codigo_estudiante):
 
 
 def revela_solucion(respuesta, problema, codigo_estudiante=""):
-    """True si algún código de la respuesta pasa TODOS los casos de prueba."""
+    """Indica si una respuesta del tutor contiene la solución del problema.
+
+    Args:
+        respuesta: Texto de la respuesta (Markdown).
+        problema: ``Problema`` con los casos de prueba.
+        codigo_estudiante: Código actual del estudiante, para completar bloques parciales.
+
+    Returns:
+        True si algún código de la respuesta pasa TODOS los casos de prueba.
+    """
     for candidato in _candidatos(extraer_codigo(respuesta), codigo_estudiante):
         if not ejecutor.compilar(candidato)[0]:
             continue
@@ -134,10 +178,24 @@ def revela_solucion(respuesta, problema, codigo_estudiante=""):
 
 
 def respuesta_segura(pedir, historial, problema, nivel, codigo, consola):
-    """Filtro en tiempo real. pedir(historial, problema, nivel, codigo, consola) -> texto
-    se recibe por inyección, como generar.
-    Regresa (respuesta final, respuesta original, estado), con estado:
-    'ok' | 'regenerada' (se pidió otra sólo con pista) | 'reemplazada' (pista fija)."""
+    """Pide una respuesta al tutor y la bloquea si revela la solución.
+
+    Si la respuesta revela la solución, se pide otra sólo con pista; si la nueva
+    también la revela (o falla la llamada), se usa ``PISTA_FIJA``.
+
+    Args:
+        pedir: Función ``pedir(historial, problema, nivel, codigo, consola) -> str``
+            (normalmente ``llm.pedir_ayuda``; en las pruebas, un tutor falso).
+        historial: Mensajes del chat, terminando con la pregunta del estudiante.
+        problema: ``Problema`` actual.
+        nivel: Nivel del problema.
+        codigo: Código actual del estudiante.
+        consola: Última salida de la consola.
+
+    Returns:
+        Tupla ``(respuesta_final, respuesta_original, estado)``, donde ``estado``
+        es ``"ok"``, ``"regenerada"`` o ``"reemplazada"``.
+    """
     original = pedir(historial, problema, nivel, codigo, consola)
     if not revela_solucion(original, problema, codigo):
         return original, original, "ok"

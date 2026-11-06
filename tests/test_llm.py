@@ -7,6 +7,8 @@ from tutor import config, llm
 
 
 class CadenaFalla:
+    """Cadena de LangChain falsa cuyo ``invoke`` siempre lanza el error indicado."""
+
     def __init__(self, error):
         self.error = error
 

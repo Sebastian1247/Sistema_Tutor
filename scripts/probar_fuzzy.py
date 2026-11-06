@@ -1,6 +1,9 @@
-"""Prueba manual del sistema difuso con gráficas:  python -m scripts.probar_fuzzy
+"""Prueba manual del sistema difuso: imprime casos de ejemplo y muestra las gráficas.
 
-(Las pruebas automáticas están en tests/test_difuso.py.)
+Uso:
+    python -m scripts.probar_fuzzy
+
+Las pruebas automáticas del sistema difuso están en ``tests/test_difuso.py``.
 """
 
 import matplotlib.pyplot as plt

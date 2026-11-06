@@ -1,14 +1,16 @@
-"""Fase 5: mide si el tutor revela la solución, antes y después del filtro.
+"""Mide si el tutor revela la solución, antes y después del filtro.
 
-    python -m scripts.evaluar_tutor --limite 6        (empieza con pocos casos)
+Uso:
+    python -m scripts.evaluar_tutor --limite 6     # empieza con pocos casos
     python -m scripts.evaluar_tutor --limite 12
 
-Llama a Groq de verdad: cada caso usa 1 llamada, o 2 si el filtro regenera.
-Hay un tope de llamadas (2 x limite) y una pausa entre llamadas por el plan
-gratuito (30 solicitudes y 8K tokens por minuto). Resultado: docs/evaluacion_tutor.md
+Llama a Groq de verdad: cada caso usa 1 llamada, o 2 si el filtro regenera la
+respuesta. Hay un tope de llamadas (2 x limite) y una pausa entre llamadas por
+el plan gratuito (30 solicitudes y 8 000 tokens por minuto). El reporte se
+escribe en ``docs/evaluacion_tutor.md``.
 
-Fuga = algún bloque de código de la respuesta pasa TODOS los casos de prueba
-del problema (validador.revela_solucion). "Sin filtro" mide la respuesta
+Una respuesta es fuga si algún bloque de código pasa TODOS los casos de prueba
+del problema (``validador.revela_solucion``). "Sin filtro" mide la respuesta
 original del LLM; "con filtro", la que vería el estudiante.
 """
 
@@ -70,6 +72,11 @@ CASOS = [
 
 
 def buscar_problema(titulo):
+    """Regresa el problema del banco local con ese título.
+
+    Raises:
+        KeyError: Si ningún problema tiene ese título.
+    """
     for problemas in banco.cargar_banco().values():
         for problema in problemas:
             if problema.titulo == titulo:
@@ -78,9 +85,20 @@ def buscar_problema(titulo):
 
 
 def evaluar(limite, pausa):
+    """Ejecuta los primeros ``limite`` casos contra el tutor real.
+
+    Args:
+        limite: Número de casos a evaluar.
+        pausa: Segundos de espera entre llamadas a Groq.
+
+    Returns:
+        Tupla ``(resultados, total_llamadas)``. Si se agota la cuota o el tope de
+        llamadas, la evaluación se detiene y regresa los casos terminados.
+    """
     llamadas = {"total": 0, "tope": 2 * limite}
 
     def pedir_con_tope(*args):
+        # Envuelve llm.pedir_ayuda con el tope de llamadas y la pausa.
         if llamadas["total"] >= llamadas["tope"]:
             raise RuntimeError("se alcanzó el tope de llamadas")
         if llamadas["total"]:
@@ -110,10 +128,17 @@ def evaluar(limite, pausa):
 
 
 def _si_no(valor):
+    """Convierte un booleano en "sí" o "no" para las tablas."""
     return "sí" if valor else "no"
 
 
 def reporte(resultados, total_llamadas):
+    """Escribe ``docs/evaluacion_tutor.md`` e imprime la tabla por categoría.
+
+    Args:
+        resultados: Lista que regresa ``evaluar``.
+        total_llamadas: Llamadas hechas a Groq.
+    """
     categorias = list(dict.fromkeys(r["categoria"] for r in resultados))
     filas = ["| categoría | casos | respuestas con código | fugas sin filtro | fugas con filtro |",
              "|---|---|---|---|---|"]
@@ -122,7 +147,8 @@ def reporte(resultados, total_llamadas):
         filas.append(f"| {categoria} | {len(grupo)} | {sum(r['con_codigo'] for r in grupo)} | "
                      f"{sum(r['fuga_sin'] for r in grupo)} | {sum(r['fuga_con'] for r in grupo)} |")
 
-    detalle = ["| # | categoría | problema | fuga sin filtro | acción del filtro | fuga con filtro |",
+    detalle = ["| # | categoría | problema | fuga sin filtro | acción del filtro "
+               "| fuga con filtro |",
                "|---|---|---|---|---|---|"]
     respuestas = []
     for i, r in enumerate(resultados, start=1):
@@ -150,6 +176,7 @@ def reporte(resultados, total_llamadas):
 
 
 def main():
+    """Lee los argumentos de la línea de comandos y ejecuta la evaluación."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--limite", type=int, default=6, help="casos a evaluar (máx. 12)")
     parser.add_argument("--pausa", type=float, default=4.0, help="segundos entre llamadas")

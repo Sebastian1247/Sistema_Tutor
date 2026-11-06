@@ -1,3 +1,5 @@
+"""Pruebas del banco local de problemas."""
+
 import pytest
 
 from tutor import banco, config, ejecutor, validador

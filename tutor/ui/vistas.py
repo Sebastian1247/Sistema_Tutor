@@ -1,5 +1,8 @@
-"""Vistas: una función por región de la pantalla. Sólo dibujan; las acciones
-están en controlador.py y las reglas en tutor/sesion.py."""
+"""Vistas de la interfaz: una función por región de la pantalla.
+
+Las vistas sólo dibujan. Las acciones de los botones están en
+``tutor.ui.controlador`` y las reglas del tutor en ``tutor.sesion``.
+"""
 
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -10,6 +13,7 @@ from tutor.ui import controlador
 
 COLORES_NIVEL = {"novato": "green", "intermedio": "orange", "avanzado": "violet"}
 
+# Título de la consola según (etapa, ok) de la última Retroalimentacion.
 TITULOS_CONSOLA = {
     ("compilacion", True): "Compilar: no hay errores de sintaxis.",
     ("compilacion", False): "Error de sintaxis: el código no se ejecutó.",
@@ -35,14 +39,14 @@ Las pistas que aparecen bajo un error de Python no cuentan como ayuda.
 
 
 def _badge_nivel(nivel):
+    """Dibuja el nivel como una insignia de color."""
     st.badge(nivel.capitalize(), color=COLORES_NIVEL[nivel])
 
 
-# =====================================================================
-# Barra lateral y encabezado
-# =====================================================================
+# --- Barra lateral y encabezado ---
 
 def barra_lateral():
+    """Dibuja la barra lateral: nivel, ayuda, historial resumido y créditos."""
     with st.sidebar:
         st.subheader("Tu nivel")
         _badge_nivel(st.session_state.nivel)
@@ -72,6 +76,7 @@ def barra_lateral():
 
 @st.fragment(run_every=1)
 def metricas():
+    """Dibuja tiempo, errores y ayudas; se redibuja sola cada segundo."""
     m1, m2, m3 = st.columns(3)
     m1.metric(":hourglass_flowing_sand: Tiempo", f"{controlador.minutos_transcurridos():.1f} min",
               border=True, help="Corre desde que aparece el problema hasta que lo entregas "
@@ -82,18 +87,17 @@ def metricas():
               help="Suma 1 cada pregunta que el tutor responde.")
 
 
-# =====================================================================
-# Generación del problema y resultado (arriba, donde el estudiante mira)
-# =====================================================================
+# --- Generación del problema y resultado (arriba, donde mira el estudiante) ---
 
 def generacion():
+    """Genera el problema pendiente mostrando el avance, y muestra avisos o errores."""
     if st.session_state.generando:
         with st.status("Preparando tu problema...", expanded=False) as avance:
             listo = controlador.generar_pendiente(avance)
             avance.update(label="Problema listo" if listo else "No se pudo generar el problema",
                           state="complete" if listo else "error")
         if listo:
-            st.rerun()                               # redibuja todo con el problema nuevo
+            st.rerun()  # redibuja la página completa con el problema nuevo
 
     if st.session_state.aviso_generacion and not st.session_state.terminado:
         st.info(f":package: {st.session_state.aviso_generacion}")
@@ -102,13 +106,14 @@ def generacion():
     if error:
         with st.container(border=True):
             st.error(error["mensaje"])
-            st.button(":arrows_counterclockwise: Reintentar", on_click=controlador.al_pedir_problema)
+            st.button(":arrows_counterclockwise: Reintentar",
+                      on_click=controlador.al_pedir_problema)
             with st.expander("Detalle técnico"):
                 st.code(error["detalle"], language="text")
 
 
 def resultado():
-    """Decisión del sistema difuso al terminar el problema."""
+    """Dibuja la decisión del sistema difuso cuando el problema terminó."""
     r = st.session_state.resultado
     if not (st.session_state.terminado and r):
         return
@@ -150,11 +155,15 @@ def resultado():
                         f"**defuzzificación** por centroide = {r.valor:.2f}: ver la gráfica.")
 
 
-# =====================================================================
-# Columna izquierda: problema y tutor
-# =====================================================================
+# --- Columna izquierda: problema y tutor ---
 
 def problema_y_tutor(p, bloqueado):
+    """Dibuja la bienvenida, o el problema y el chat en pestañas.
+
+    Args:
+        p: ``Problema`` actual, o None si todavía no hay.
+        bloqueado: True si no se puede interactuar (sin problema o ya terminado).
+    """
     if p is None:
         with st.container(border=True):
             st.subheader(":wave: Bienvenido")
@@ -174,6 +183,7 @@ def problema_y_tutor(p, bloqueado):
 
 
 def _problema(p):
+    """Dibuja el enunciado, los ejemplos y las correcciones del validador."""
     st.subheader(p.titulo)
     _badge_nivel(st.session_state.nivel_problema)
     st.markdown(p.descripcion)
@@ -184,7 +194,7 @@ def _problema(p):
     e1.code(p.ejemplo_entrada or "(ninguna)", language="text")
     e2.markdown("**Ejemplo de salida**")
     e2.code(p.ejemplo_salida, language="text")
-    if st.session_state.correcciones:                # transparencia del validador
+    if st.session_state.correcciones:  # transparencia: qué corrigió el validador
         with st.expander(f":warning: El validador corrigió {len(st.session_state.correcciones)} "
                          "salida(s) generadas por el LLM"):
             for correccion in st.session_state.correcciones:
@@ -192,6 +202,7 @@ def _problema(p):
 
 
 def _chat(bloqueado):
+    """Dibuja la conversación con el tutor y procesa la pregunta nueva."""
     mensajes = st.container(height=380, autoscroll=True)
     with mensajes:
         if not st.session_state.chat:
@@ -215,11 +226,15 @@ def _chat(bloqueado):
                     st.markdown(respuesta)
 
 
-# =====================================================================
-# Columna derecha: editor y consola
-# =====================================================================
+# --- Columna derecha: editor y consola ---
 
 def editor_y_consola(p, bloqueado):
+    """Dibuja el editor, los botones de acción y la consola.
+
+    Args:
+        p: ``Problema`` actual, o None si todavía no hay.
+        bloqueado: True si los botones deben estar deshabilitados.
+    """
     codigo = st_ace(
         value=p.codigo_inicial if p else "# Escribe tu solución aquí\n",
         language="python",
@@ -227,8 +242,8 @@ def editor_y_consola(p, bloqueado):
         height=300,
         tab_size=4,
         auto_update=True,
-        readonly=st.session_state.terminado,         # no se edita al terminar
-        key=f"editor_{st.session_state.id_problema}",
+        readonly=st.session_state.terminado,  # no se edita un problema terminado
+        key=f"editor_{st.session_state.id_problema}",  # editor nuevo por problema
     )
     if codigo is not None:
         st.session_state.codigo = codigo
@@ -252,6 +267,7 @@ def editor_y_consola(p, bloqueado):
 
 
 def _consola():
+    """Dibuja la consola: entrada, salida, pista de error y resultado de cada caso."""
     resultados = st.session_state.resultados_pruebas
     titulo_casos = ":test_tube: Casos de prueba"
     if resultados:
@@ -266,10 +282,9 @@ def _consola():
                 st.success(titulo)
             else:
                 st.error(titulo)
-        # Entrada y salida lado a lado (en pantallas chicas se apilan): así los botones
-        # quedan pegados al editor y el resultado de cada acción se ve sin desplazarse.
+        # Entrada y salida lado a lado: los botones quedan pegados al editor y el
+        # resultado de cada acción se ve sin desplazarse.
         c_entrada, c_salida = st.columns([2, 3])
-        # Una clave por problema (como el editor): arranca con el ejemplo del problema
         p = st.session_state.problema
         c_entrada.text_area("Entrada para Ejecutar (lo que leerá input(), un dato por línea)",
                             value=p.ejemplo_entrada if p else "", height=120,
@@ -297,6 +312,7 @@ def _consola():
 
 
 def historial():
+    """Dibuja la tabla completa del historial de la sesión, si hay problemas terminados."""
     if st.session_state.historial:
         with st.expander("Historial completo de la sesión"):
             st.dataframe(st.session_state.historial, hide_index=True)

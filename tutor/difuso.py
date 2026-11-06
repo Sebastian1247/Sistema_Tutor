@@ -1,7 +1,10 @@
-"""Sistema de inferencia difusa Mamdani para asignar el nivel del estudiante.
+"""Sistema de inferencia difusa Mamdani que asigna el nivel del estudiante.
 
-Entradas : tiempo (min), errores, ayudas
-Salida   : nivel recomendado para el siguiente problema
+Entradas: tiempo (minutos), errores y ayudas. Salida: nivel recomendado para
+el siguiente problema (novato, intermedio o avanzado).
+
+Operadores Mamdani: AND = mínimo, implicación = mínimo, agregación = máximo y
+defuzzificación por centroide.
 """
 
 import warnings
@@ -13,9 +16,7 @@ from skfuzzy import control as ctrl
 
 from tutor import config
 
-# =====================================================================
-# Pasos 2 y 3: universos y funciones de pertenencia
-# =====================================================================
+# --- Universos y funciones de pertenencia ---
 
 tiempo = ctrl.Antecedent(np.linspace(0, config.TIEMPO_MAXIMO, 601), "tiempo")
 errores = ctrl.Antecedent(np.linspace(0, config.ERRORES_MAXIMOS, 151), "errores")
@@ -38,14 +39,13 @@ nivel["novato"] = fuzz.trapmf(nivel.universe, [0, 0, 2, 4])
 nivel["intermedio"] = fuzz.trimf(nivel.universe, [3, 5, 7])
 nivel["avanzado"] = fuzz.trapmf(nivel.universe, [6, 8, 10, 10])
 
-# =====================================================================
-# Paso 4: base de reglas (27 = 3 x 3 x 3)
-# Criterio: bueno = 2, regular = 1, malo = 0
-#           suma >= 5 -> avanzado | 3-4 -> intermedio | <= 2 -> novato
-# Excepción (veto): si ayudas es "muchas" -> novato, porque muchas ayudas
-# indican que el estudiante dependió del tutor (las pruebas del chatbot
-# mostraron que con ~7 preguntas puede revelar la solución).
-# =====================================================================
+# --- Base de reglas: 27 = 3 x 3 x 3 ---
+#
+# Cada entrada vale bueno = 2, regular = 1 o malo = 0, y el consecuente sale
+# de la suma: >= 5 avanzado, 3-4 intermedio, <= 2 novato.
+# Veto: si las ayudas son "muchas" el consecuente es novato, porque muchas
+# ayudas indican que el estudiante dependió del tutor (en las pruebas del
+# chatbot, con unas 7 preguntas llegaba a revelar la solución).
 
 #         tiempo    errores    ayudas      ->  nivel          puntos
 REGLAS = [
@@ -83,44 +83,69 @@ reglas = [
     for i, (t, e, a, c) in enumerate(REGLAS, start=1)
 ]
 
-# Paso 5: el sistema (Mamdani: AND = min, implicación = min, agregación = max)
+# scikit-fuzzy usa por defecto los operadores Mamdani (mín, mín, máx).
 sistema = ctrl.ControlSystem(reglas)
 
 
-# =====================================================================
-# Funciones de uso
-# =====================================================================
+# --- Funciones de uso ---
 
 def recortar(t, e, a):
-    """Recorta las entradas a su universo (ej. 80 min se evalúa como 60)."""
+    """Recorta las entradas a su universo (por ejemplo, 80 min se evalúa como 60).
+
+    Returns:
+        Tupla ``(tiempo, errores, ayudas)`` como ``float``.
+    """
     return (float(np.clip(t, 0, config.TIEMPO_MAXIMO)),
             float(np.clip(e, 0, config.ERRORES_MAXIMOS)),
             float(np.clip(a, 0, config.AYUDAS_MAXIMAS)))
 
 
 def fuzzificar(variable, valor):
-    """Grado de pertenencia de un valor a cada término de una variable."""
+    """Calcula el grado de pertenencia de un valor a cada término de una variable.
+
+    Args:
+        variable: ``Antecedent`` o ``Consequent`` de scikit-fuzzy.
+        valor: Valor nítido dentro del universo de la variable.
+
+    Returns:
+        Diccionario ``{término: grado}`` con grados entre 0 y 1.
+    """
     return {nombre: float(fuzz.interp_membership(variable.universe, termino.mf, valor))
             for nombre, termino in variable.terms.items()}
 
 
 def inferir(t, e, a):
-    """Ejecuta la inferencia completa. Devuelve (valor nítido, etiqueta, simulación)."""
+    """Ejecuta la inferencia Mamdani completa.
+
+    Args:
+        t: Tiempo en minutos.
+        e: Errores.
+        a: Ayudas.
+
+    Returns:
+        Tupla ``(valor, etiqueta, simulacion)``: ``valor`` es la salida nítida
+        (centroide), ``etiqueta`` el término de salida con mayor pertenencia en
+        ese valor y ``simulacion`` la ``ControlSystemSimulation`` usada.
+    """
     t, e, a = recortar(t, e, a)
     simulacion = ctrl.ControlSystemSimulation(sistema)
     simulacion.input["tiempo"] = t
     simulacion.input["errores"] = e
     simulacion.input["ayudas"] = a
-    simulacion.compute()                                       # pasos 1 a 6
+    simulacion.compute()  # fuzzificación, reglas, implicación, agregación y centroide
 
-    valor = simulacion.output["nivel"]                         # centroide
-    grados = fuzzificar(nivel, valor)                          # paso 7
+    valor = simulacion.output["nivel"]
+    grados = fuzzificar(nivel, valor)
     etiqueta = max(grados, key=grados.get)
     return valor, etiqueta, simulacion
 
 
 def tabla_fuzzificacion(t, e, a):
-    """Paso 1 en forma de tabla: una fila por término de cada entrada."""
+    """Regresa la fuzzificación de las tres entradas como filas de una tabla.
+
+    Returns:
+        Lista con una fila por término: ``variable``, ``valor``, ``término`` y ``grado``.
+    """
     t, e, a = recortar(t, e, a)
     filas = []
     for variable, valor in [(tiempo, t), (errores, e), (ayudas, a)]:
@@ -131,8 +156,13 @@ def tabla_fuzzificacion(t, e, a):
 
 
 def reglas_activadas(t, e, a):
-    """Reglas con fuerza > 0, para mostrarlas en la interfaz.
-    Fuerza de una regla = mínimo de los grados de sus antecedentes (AND)."""
+    """Regresa las reglas con fuerza mayor que cero, de la más fuerte a la más débil.
+
+    La fuerza de una regla es el mínimo de los grados de sus antecedentes (AND).
+
+    Returns:
+        Lista de diccionarios con la regla, sus antecedentes, su consecuente y su fuerza.
+    """
     t, e, a = recortar(t, e, a)
     gt, ge, ga = fuzzificar(tiempo, t), fuzzificar(errores, e), fuzzificar(ayudas, a)
     activas = []
@@ -151,18 +181,27 @@ def reglas_activadas(t, e, a):
 
 
 def zonas_nivel():
-    """Intervalo de la salida donde cada nivel tiene pertenencia > 0 (para la interfaz)."""
+    """Regresa el intervalo de la salida donde cada nivel tiene pertenencia mayor que cero.
+
+    Returns:
+        Diccionario ``{nivel: (inicio, fin)}``.
+    """
     u = nivel.universe
     return {nombre: (float(u[termino.mf > 0].min()), float(u[termino.mf > 0].max()))
             for nombre, termino in nivel.terms.items()}
 
 
 def figura_salida(t, e, a):
-    """Conjunto agregado de la salida y el centroide, como figura de matplotlib.
-    La interfaz recibe la figura y no necesita saber que el motor es skfuzzy."""
+    """Dibuja el conjunto agregado de la salida y el centroide.
+
+    La interfaz recibe una figura de matplotlib y no necesita conocer scikit-fuzzy.
+
+    Returns:
+        ``matplotlib.figure.Figure``; quien la reciba debe cerrarla con ``plt.close``.
+    """
     _, _, simulacion = inferir(t, e, a)
     with warnings.catch_warnings():
-        # skfuzzy llama a fig.show(), que avisa cuando el backend no tiene ventanas
+        # scikit-fuzzy llama a fig.show(), que avisa cuando el backend no tiene ventanas.
         warnings.filterwarnings("ignore", message=".*non-interactive.*")
         nivel.view(sim=simulacion)
     return plt.gcf()

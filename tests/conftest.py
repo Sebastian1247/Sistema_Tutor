@@ -1,3 +1,5 @@
+"""Datos compartidos por las pruebas: un problema armado a mano."""
+
 import pytest
 
 from tutor.modelos import CasoPrueba, Problema
@@ -27,4 +29,5 @@ def crear_problema(solucion=SOLUCION_PARES, casos=None, ejemplo=("48392", "3")):
 
 @pytest.fixture
 def problema():
+    """Problema de dígitos pares con su solución y 3 casos de prueba."""
     return crear_problema()

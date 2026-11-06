@@ -1,3 +1,5 @@
+"""Pruebas de la compilación y ejecución aislada del código."""
+
 from tutor import ejecutor
 from tutor.modelos import CasoPrueba
 

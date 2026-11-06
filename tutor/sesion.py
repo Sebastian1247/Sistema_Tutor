@@ -1,9 +1,8 @@
-"""Reglas del flujo de un problema, sin Streamlit.
+"""Reglas del flujo de un problema, independientes de la interfaz.
 
-Aquí vive lo que antes estaba dentro de los callbacks de app.py: qué cuenta
-como error, qué pasa al entregar, cómo se evalúa "me rindo" y cuánto puede
-cambiar el nivel. Son funciones puras (reciben datos y regresan datos), por eso
-se pueden probar con pytest.
+Define qué cuenta como error, qué pasa al entregar, cómo se evalúa "me rindo"
+y cuánto puede cambiar el nivel. Son funciones puras (reciben datos y regresan
+datos), por lo que se prueban sin Streamlit y sin el LLM.
 """
 
 import re
@@ -16,17 +15,38 @@ from tutor.modelos import Resultado
 
 @dataclass
 class Retroalimentacion:
-    """Lo que la consola debe mostrar después de una acción del estudiante."""
+    """Lo que la consola debe mostrar después de una acción del estudiante.
+
+    Attributes:
+        ok: True si la acción terminó sin errores.
+        mensaje: Texto para la consola.
+        cuenta_error: True si la acción suma un error al estudiante.
+        resultados_pruebas: Resultado de cada caso de prueba (sólo al entregar).
+        resuelto: True si la entrega pasó todos los casos.
+        etapa: Etapa que produjo el mensaje: ``"compilacion"``, ``"ejecucion"``
+            o ``"entrega"``.
+    """
+
     ok: bool
     mensaje: str
     cuenta_error: bool = False
-    resultados_pruebas: list | None = None     # sólo al entregar
+    resultados_pruebas: list | None = None
     resuelto: bool = False
-    etapa: str = "compilacion"                 # compilacion | ejecucion | entrega
+    etapa: str = "compilacion"
 
 
 def minutos_transcurridos(inicio, fin=None, ahora=None):
-    """El reloj se detiene al terminar (fin). ahora se inyecta en las pruebas."""
+    """Calcula los minutos que lleva el problema.
+
+    Args:
+        inicio: Marca de tiempo (``time.time()``) en que apareció el problema,
+            o None si todavía no hay problema.
+        fin: Marca de tiempo en que terminó; si existe, el reloj se detiene ahí.
+        ahora: Marca de tiempo actual. Se puede fijar en las pruebas.
+
+    Returns:
+        Minutos transcurridos (0.0 si no hay problema).
+    """
     if inicio is None:
         return 0.0
     fin = fin or ahora or time.time()
@@ -34,7 +54,15 @@ def minutos_transcurridos(inicio, fin=None, ahora=None):
 
 
 def siguiente_nivel(actual, recomendado):
-    """El nivel sube o baja como máximo un escalón por problema."""
+    """Mueve el nivel hacia el recomendado, como máximo un escalón por problema.
+
+    Args:
+        actual: Nivel del problema que se terminó.
+        recomendado: Nivel que decidió el sistema difuso.
+
+    Returns:
+        Nivel del siguiente problema.
+    """
     i, j = config.NIVELES.index(actual), config.NIVELES.index(recomendado)
     if j > i:
         return config.NIVELES[i + 1]
@@ -44,12 +72,22 @@ def siguiente_nivel(actual, recomendado):
 
 
 def procesar_compilacion(codigo):
+    """Revisa la sintaxis; un error de sintaxis cuenta como error del estudiante."""
     ok, mensaje = ejecutor.compilar(codigo)
     return Retroalimentacion(ok, mensaje, cuenta_error=not ok)
 
 
 def procesar_ejecucion(codigo, entrada):
-    """Compila antes de ejecutar: un error de sintaxis se reporta igual que al compilar."""
+    """Compila y, si no hay errores de sintaxis, ejecuta el código.
+
+    Args:
+        codigo: Código del estudiante.
+        entrada: Texto que leerá ``input()``.
+
+    Returns:
+        ``Retroalimentacion`` de la compilación si falló, o de la ejecución. Si
+        el programa pidió más datos de los que había, el mensaje lo sugiere.
+    """
     compilacion = procesar_compilacion(codigo)
     if not compilacion.ok:
         return compilacion
@@ -62,7 +100,16 @@ def procesar_ejecucion(codigo, entrada):
 
 
 def procesar_entrega(codigo, casos):
-    """Corre los casos de prueba. Resuelve el problema sólo si pasan todos."""
+    """Ejecuta los casos de prueba; el problema se resuelve sólo si pasan todos.
+
+    Args:
+        codigo: Código del estudiante.
+        casos: Casos de prueba del problema.
+
+    Returns:
+        ``Retroalimentacion`` con el resultado de cada caso. Una entrega
+        incorrecta cuenta como error.
+    """
     compilacion = procesar_compilacion(codigo)
     if not compilacion.ok:
         return compilacion
@@ -77,8 +124,8 @@ def procesar_entrega(codigo, casos):
                              cuenta_error=True, resultados_pruebas=resultados, etapa="entrega")
 
 
-# Qué significa cada error, no dónde está ni cómo arreglarlo: eso le toca
-# al estudiante (o al tutor, y entonces sí cuenta como ayuda).
+# Explican qué significa cada tipo de error, no dónde está ni cómo arreglarlo:
+# eso le toca al estudiante, o al tutor (y entonces sí cuenta como ayuda).
 PISTAS_ERRORES = {
     "SyntaxError": "Python no entiende cómo está escrita una línea. Revisa los dos puntos (:) "
                    "al final de if, for, while y def, y que cada paréntesis o comilla que abres "
@@ -104,15 +151,35 @@ PISTAS_ERRORES = {
 
 
 def pista_error(salida):
-    """Pista según el tipo del último error en la salida, o None si no hay pista."""
+    """Busca una pista para el último error de Python que aparece en la salida.
+
+    Args:
+        salida: Texto de la consola (traceback o mensaje de compilación).
+
+    Returns:
+        La pista del tipo de error, o None si no hay error conocido.
+    """
     tipos = re.findall(r"^(\w+(?:Error|Exception))\b", salida, re.MULTILINE)
     return PISTAS_ERRORES.get(tipos[-1]) if tipos else None
 
 
 def evaluar_desempeno(resuelto, minutos, errores, ayudas, nivel_problema):
-    """Aplica el sistema difuso Mamdani: el nivel recomendado SIEMPRE sale de
-    difuso.inferir. Rendirse se evalúa con el peor caso: tiempo máximo y al
-    menos los errores máximos."""
+    """Decide el nivel del siguiente problema con la inferencia Mamdani.
+
+    El nivel recomendado siempre sale de ``difuso.inferir``. Rendirse se evalúa
+    con el peor caso: tiempo máximo y al menos los errores máximos.
+
+    Args:
+        resuelto: True si el estudiante pasó todos los casos; False si se rindió.
+        minutos: Tiempo que tardó.
+        errores: Errores contados durante el problema.
+        ayudas: Preguntas que respondió el tutor.
+        nivel_problema: Nivel del problema que se terminó.
+
+    Returns:
+        ``Resultado`` con las entradas usadas, la salida nítida, el nivel
+        recomendado y el nivel del siguiente problema.
+    """
     if resuelto:
         tiempo = minutos
     else:
@@ -128,15 +195,25 @@ def evaluar_desempeno(resuelto, minutos, errores, ayudas, nivel_problema):
 
 
 def _cantidad(n, singular, plural):
+    """Regresa ``n`` con la palabra en singular o plural (``"1 ayuda"``, ``"2 ayudas"``)."""
     return f"{n} {singular if n == 1 else plural}"
 
 
 def explicar_resultado(resultado, nivel_problema):
     """Explica en lenguaje simple la decisión de la inferencia Mamdani.
 
-    Sólo DESCRIBE la decisión con los mismos grados y reglas del sistema
-    difuso; el nivel ya viene decidido en resultado (evaluar_desempeno)."""
+    Sólo describe la decisión con los mismos grados de pertenencia y reglas del
+    sistema difuso; no la modifica.
+
+    Args:
+        resultado: ``Resultado`` de ``evaluar_desempeno``.
+        nivel_problema: Nivel del problema que se terminó.
+
+    Returns:
+        Texto en Markdown para el banner de resultado.
+    """
     t, e, a = difuso.recortar(resultado.tiempo, resultado.errores, resultado.ayudas)
+    # Término con mayor grado de pertenencia de cada entrada ("corto", "algunos"...).
     termino = {nombre: max(grados, key=grados.get) for nombre, grados in [
         ("tiempo", difuso.fuzzificar(difuso.tiempo, t)),
         ("errores", difuso.fuzzificar(difuso.errores, e)),
@@ -159,7 +236,7 @@ def explicar_resultado(resultado, nivel_problema):
 
     activas = difuso.reglas_activadas(t, e, a)
     if activas:
-        regla = activas[0]
+        regla = activas[0]  # la de mayor fuerza
         frases.append(f"La regla que más pesó: tiempo {regla['SI tiempo es']}, "
                       f"{regla['Y errores son']} errores y {regla['Y ayudas son']} ayudas "
                       f"→ {regla['ENTONCES nivel es']}.")
