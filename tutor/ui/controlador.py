@@ -1,17 +1,17 @@
-"""Callbacks de los botones (se ejecutan antes de redibujar la página).
+"""Controlador de la interfaz: estado de la sesión y callbacks de los botones.
 
-Son adaptadores delgados: leen st.session_state, llaman a la lógica de nucleo/
-o llm/ y guardan el resultado. Las reglas de negocio no viven aquí.
+Los callbacks se ejecutan antes de redibujar la página. Son adaptadores
+delgados: leen st.session_state, llaman a la lógica (sesion, validador, llm)
+y guardan el resultado. Las reglas de negocio no viven aquí.
 """
 
 import time
 
 import streamlit as st
 
-from llm import generador, tutor
-from llm.cliente import ErrorCuota
-from nucleo import generacion, sesion
-from ui import estado
+from tutor import llm, sesion, validador
+
+CONSOLA_INICIAL = "Aquí aparecerá la salida de la ejecución del código."
 
 MENSAJE_CUOTA_PROBLEMA = ("Se alcanzó el límite del plan gratuito de Groq. "
                           "Espera un minuto e intenta de nuevo; si persiste, "
@@ -19,20 +19,84 @@ MENSAJE_CUOTA_PROBLEMA = ("Se alcanzó el límite del plan gratuito de Groq. "
 MENSAJE_CUOTA_TUTOR = ("Se alcanzó el límite del plan gratuito de Groq. "
                        "Espera un minuto y vuelve a preguntar.")
 
+VALORES_INICIALES = {
+    "errores": 0,
+    "ayudas": 0,
+    "inicio": None,
+    "fin": None,                # momento en que terminó el problema
+    "codigo": "",
+    "entrada": "",
+    "consola": CONSOLA_INICIAL,
+    "consola_ok": None,
+    "nivel": "novato",
+    "problema": None,
+    "nivel_problema": None,
+    "id_problema": 0,
+    "titulos_previos": [],
+    "error_llm": None,
+    "chat": [],
+    "correcciones": [],         # salidas del LLM corregidas por el validador
+    "resultados_pruebas": None, # resultado de Entregar
+    "terminado": False,         # el problema ya se resolvió o se abandonó
+    "resultado": None,          # decisión del sistema difuso (modelos.Resultado)
+    "historial": [],            # una fila por problema terminado
+}
+
+
+# =====================================================================
+# Estado de la sesión
+# =====================================================================
+
+def iniciar_estado():
+    for clave, valor in VALORES_INICIALES.items():
+        if clave not in st.session_state:
+            st.session_state[clave] = valor
+
+
+def _reiniciar_problema(problema, correcciones, nivel):
+    """Deja la sesión lista para un problema nuevo (reloj incluido)."""
+    estado = st.session_state
+    estado.error_llm = None
+    estado.problema = problema
+    estado.correcciones = correcciones
+    estado.nivel_problema = nivel
+    estado.titulos_previos.append(problema.titulo)
+    estado.id_problema += 1
+    estado.codigo = problema.codigo_inicial
+    estado.entrada = problema.ejemplo_entrada
+    estado.consola = CONSOLA_INICIAL
+    estado.consola_ok = None
+    estado.errores = 0
+    estado.ayudas = 0
+    estado.chat = []
+    estado.resultados_pruebas = None
+    estado.terminado = False
+    estado.resultado = None
+    estado.fin = None
+    estado.inicio = time.time()           # DESPUÉS de generar y validar
+
+
+def minutos_transcurridos():
+    return sesion.minutos_transcurridos(st.session_state.inicio, st.session_state.fin)
+
+
+# =====================================================================
+# Callbacks
+# =====================================================================
 
 def nuevo_problema():
     nivel = st.session_state.nivel
     try:
         with st.spinner(f"Generando y validando un problema de nivel {nivel}..."):
-            problema, correcciones = generacion.generar_problema_validado(
-                nivel, st.session_state.titulos_previos, generar=generador.generar_problema)
-    except ErrorCuota:
+            problema, correcciones = validador.generar_problema_validado(
+                nivel, st.session_state.titulos_previos, generar=llm.generar_problema)
+    except llm.ErrorCuota:
         st.session_state.error_llm = MENSAJE_CUOTA_PROBLEMA
         return
     except Exception as error:
         st.session_state.error_llm = f"No se pudo generar el problema: {error}"
         return
-    estado.reiniciar_problema(problema, correcciones, nivel)
+    _reiniciar_problema(problema, correcciones, nivel)
 
 
 def _mostrar_en_consola(retro):
@@ -70,7 +134,7 @@ def _finalizar(resuelto):
     st.session_state.fin = time.time()               # detiene el reloj
     resultado = sesion.evaluar_desempeno(
         resuelto,
-        estado.minutos_transcurridos(),
+        minutos_transcurridos(),
         st.session_state.errores,
         st.session_state.ayudas,
         st.session_state.nivel_problema,
@@ -92,7 +156,7 @@ def al_preguntar():
     st.session_state.chat.append({"role": "user", "content": pregunta})
     try:
         with st.spinner("El tutor está pensando..."):
-            respuesta = tutor.pedir_ayuda(
+            respuesta = llm.pedir_ayuda(
                 st.session_state.chat,
                 st.session_state.problema,
                 st.session_state.nivel_problema,
@@ -100,7 +164,7 @@ def al_preguntar():
                 st.session_state.consola,
             )
         st.session_state.ayudas += 1
-    except ErrorCuota:
+    except llm.ErrorCuota:
         respuesta = MENSAJE_CUOTA_TUTOR
     except Exception as error:
         respuesta = f"No pude responder: {error}"

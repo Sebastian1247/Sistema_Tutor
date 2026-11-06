@@ -1,7 +1,7 @@
 """Punto de entrada:  streamlit run app.py
 
-Sólo acomoda las regiones de la página. La lógica está en nucleo/, difuso/ y
-llm/; el estado y los callbacks en ui/.
+Sólo acomoda las regiones de la página. La lógica está en el paquete tutor/;
+el estado, los callbacks y las vistas en tutor/ui/.
 """
 
 import matplotlib
@@ -11,14 +11,13 @@ import streamlit as st
 
 st.set_page_config(page_title="Tutor de Python", page_icon=":snake:", layout="wide")
 
-from ui import estado
-from ui.vistas import barra_lateral, chat, consola, editor, metricas, problema, resultado
+from tutor.ui import controlador, vistas
 
-estado.iniciar_estado()
-barra_lateral.mostrar()
+controlador.iniciar_estado()
+vistas.barra_lateral()
 
 st.title(":snake: Tutor de programación en Python")
-metricas.mostrar()
+vistas.metricas()
 
 p = st.session_state.problema
 bloqueado = p is None or st.session_state.terminado     # sin problema o ya terminado
@@ -26,15 +25,15 @@ bloqueado = p is None or st.session_state.terminado     # sin problema o ya term
 # --- Fila 1: problema | chatbot ---
 col_problema, col_chat = st.columns([3, 2])
 with col_problema:
-    problema.mostrar(p)
+    vistas.problema(p)
 with col_chat:
-    chat.mostrar(bloqueado)
+    vistas.chat(bloqueado)
 
 # --- Fila 2: editor | ejecución ---
 col_editor, col_consola = st.columns([3, 2])
 with col_editor:
-    editor.mostrar(p, bloqueado)
+    vistas.editor(p, bloqueado)
 with col_consola:
-    consola.mostrar()
+    vistas.consola()
 
-resultado.mostrar()
+vistas.resultado()

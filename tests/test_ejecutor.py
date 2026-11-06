@@ -1,5 +1,5 @@
-from dominio.modelos import CasoPrueba
-from nucleo import ejecutor
+from tutor import ejecutor
+from tutor.modelos import CasoPrueba
 
 
 # --- compilar ---

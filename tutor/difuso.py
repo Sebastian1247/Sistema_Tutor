@@ -4,11 +4,14 @@ Entradas : tiempo (min), errores, ayudas
 Salida   : nivel recomendado para el siguiente problema
 """
 
+import warnings
+
+import matplotlib.pyplot as plt
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-import config
+from tutor import config
 
 # =====================================================================
 # Pasos 2 y 3: universos y funciones de pertenencia
@@ -145,3 +148,14 @@ def reglas_activadas(t, e, a):
                 "fuerza": round(fuerza, 3),
             })
     return sorted(activas, key=lambda r: r["fuerza"], reverse=True)
+
+
+def figura_salida(t, e, a):
+    """Conjunto agregado de la salida y el centroide, como figura de matplotlib.
+    La interfaz recibe la figura y no necesita saber que el motor es skfuzzy."""
+    _, _, simulacion = inferir(t, e, a)
+    with warnings.catch_warnings():
+        # skfuzzy llama a fig.show(), que avisa cuando el backend no tiene ventanas
+        warnings.filterwarnings("ignore", message=".*non-interactive.*")
+        nivel.view(sim=simulacion)
+    return plt.gcf()

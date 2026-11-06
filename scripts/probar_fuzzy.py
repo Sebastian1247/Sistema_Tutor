@@ -5,7 +5,7 @@
 
 import matplotlib.pyplot as plt
 
-from difuso.sistema import ayudas, errores, fuzzificar, inferir, nivel, tiempo
+from tutor.difuso import ayudas, errores, fuzzificar, inferir, nivel, tiempo
 
 # Paso 1: fuzzificación (compara con la tabla del ejemplo a mano)
 print("tiempo = 10  ->", fuzzificar(tiempo, 10))

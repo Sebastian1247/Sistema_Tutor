@@ -1,4 +1,0 @@
-Genera UN problema de nivel {nivel}.
-Temas apropiados para ese nivel: {temas}.
-El programa debe leer sus datos con input() e imprimir el resultado con print(), para poder verificarlo con casos de prueba automáticos.
-No repitas estos problemas: {previos}.

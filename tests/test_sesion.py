@@ -1,7 +1,6 @@
 import pytest
 
-import config
-from nucleo import sesion
+from tutor import config, sesion
 
 NIVELES = config.NIVELES
 

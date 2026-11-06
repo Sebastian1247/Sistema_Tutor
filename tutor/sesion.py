@@ -9,10 +9,8 @@ se pueden probar con pytest.
 import time
 from dataclasses import dataclass
 
-import config
-from difuso import sistema
-from dominio.modelos import Resultado
-from nucleo import ejecutor
+from tutor import config, difuso, ejecutor
+from tutor.modelos import Resultado
 
 
 @dataclass
@@ -86,7 +84,7 @@ def evaluar_desempeno(resuelto, minutos, errores, ayudas, nivel_problema):
         tiempo = config.TIEMPO_MAXIMO
         errores = max(errores, config.ERRORES_MAXIMOS)
 
-    valor, recomendado, _ = sistema.inferir(tiempo, errores, ayudas)
+    valor, recomendado, _ = difuso.inferir(tiempo, errores, ayudas)
     return Resultado(
         resuelto=resuelto, tiempo=tiempo, errores=errores, ayudas=ayudas,
         valor=valor, recomendado=recomendado,

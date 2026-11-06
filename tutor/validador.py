@@ -5,9 +5,10 @@ Idea: el LLM puede equivocarse al calcular "de cabeza" las salidas esperadas
 confiable que su aritmética mental, así que:
   - si la solución no compila o truena  -> el problema se descarta
   - si la solución da otra salida       -> se corrige la salida esperada
+Si el problema se descarta, generar_problema_validado pide otro.
 """
 
-from nucleo import ejecutor
+from tutor import config, ejecutor
 
 
 def _arreglar_saltos(texto):
@@ -51,3 +52,19 @@ def validar_problema(problema):
         problema.ejemplo_salida = salida.strip()
 
     return problema, correcciones
+
+
+def generar_problema_validado(nivel, titulos_previos, generar,
+                              intentos=config.INTENTOS_GENERACION):
+    """generar(nivel, titulos_previos) -> Problema. Se recibe como parámetro
+    (inyección de dependencias): así se prueba con un generador falso, sin gastar cuota.
+    Regresa (problema, correcciones). Lanza ValueError si ningún intento sirve."""
+    ultimo_error = None
+    for _ in range(intentos):
+        problema = generar(nivel, titulos_previos)
+        try:
+            return validar_problema(problema)
+        except ValueError as error:
+            ultimo_error = error
+    raise ValueError(f"el LLM generó {intentos} problemas cuya solución "
+                     f"no funciona ({ultimo_error})")

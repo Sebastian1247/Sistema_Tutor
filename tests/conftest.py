@@ -1,6 +1,6 @@
 import pytest
 
-from dominio.modelos import CasoPrueba, Problema
+from tutor.modelos import CasoPrueba, Problema
 
 SOLUCION_PARES = (
     "n = input().strip()\n"
