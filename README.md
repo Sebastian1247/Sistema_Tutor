@@ -25,7 +25,7 @@ Proyecto de la materia *Introducción a la Inteligencia Artificial*, Maestría e
 - [Pruebas](#pruebas)
 - [Evaluación del tutor](#evaluación-del-tutor)
 - [Limitaciones](#limitaciones)
-- [Autor](#autor)
+- [Autores](#autores)
 
 ## Características
 
@@ -202,6 +202,8 @@ Detalle y respuestas completas: [`docs/evaluacion_tutor.md`](docs/evaluacion_tut
 - Las funciones de pertenencia se definieron por criterio, no con datos de estudiantes reales.
 - Plan gratuito de Groq: 30 solicitudes por minuto, 1 000 al día y 8 000 tokens por minuto por modelo. Generar un problema usa 1 llamada (2 si el primero no pasa la validación) y cada pregunta al tutor usa 1 (2 si el filtro regenera la respuesta).
 
-## Autor
+## Autores
 
-**Sebastián Verdugo Bermúdez**: Maestría en Ciencias de la Computación, Tecnológico Nacional de México.
+- Sebastian Verdugo Bermudez — [Sebastian1247](https://github.com/Sebastian1247)<br>
+  Tecnologías de Programación, Maestría en Ciencias de la Computación (1er semestre)<br>
+  [Tecnológico Nacional de México, Campus Culiacán](https://www.culiacan.tecnm.mx/posgrados/maestria-en-ciencias-de-la-computacion/)

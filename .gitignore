@@ -1,6 +1,43 @@
-.venv/
+# --- Secretos ---
+# Contiene GROQ_API_KEY: nunca debe subirse.
 .env
+.env.*
+
+# --- Entorno virtual ---
+.venv/
+venv/
+env/
+
+# --- Python ---
 __pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# --- Pruebas ---
 .pytest_cache/
-.claude/settings.local.json
+.coverage
+htmlcov/
+
+# --- Streamlit ---
+# Sólo se sube el tema (.streamlit/config.toml); secrets.toml tendría claves.
+.streamlit/secrets.toml
+
+# --- Editores y sistema operativo ---
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Office ---
+# Archivos de bloqueo que crea Word/PowerPoint mientras un documento está abierto.
 ~$*
+
+# --- Material de referencia que no es de este proyecto ---
+# Plantilla institucional y presentación de ejemplo de otro autor: se usaron
+# como referencia de estilo, pero no se publican.
+docs/PRESENTACION POWER POINT-DIAPOSITIVAS TecNM 2026.pptx
+docs/PRESENTACION TESIS DIEGODELAROCHA.pdf
