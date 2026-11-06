@@ -218,10 +218,12 @@ def _finalizar(resuelto):
 
 def preguntar(pregunta):
     """Regresa (respuesta, aviso). Sólo un intercambio exitoso entra al historial
-    y cuenta como ayuda: los errores de conexión no contaminan lo que ve el LLM."""
+    y cuenta como ayuda: los errores de conexión no contaminan lo que ve el LLM.
+    La respuesta pasa por el filtro de fuga (validador.respuesta_segura)."""
     historial = st.session_state.chat + [{"role": "user", "content": pregunta}]
     try:
-        respuesta = llm.pedir_ayuda(
+        respuesta, _, _ = validador.respuesta_segura(
+            llm.pedir_ayuda,
             historial,
             st.session_state.problema,
             st.session_state.nivel_problema,
@@ -234,6 +236,9 @@ def preguntar(pregunta):
         return None, ("El tutor no pudo responder (sin conexión o error del servicio). "
                       "Tu pregunta no contó como ayuda; vuelve a escribirla.")
 
+    # Sólo la respuesta final entra al historial: la que revelaba la solución nunca
+    # se muestra ni se le vuelve a mandar al LLM. El filtro no se anuncia al
+    # estudiante para no darle pistas de qué preguntas "casi funcionan".
     st.session_state.chat = historial + [{"role": "assistant", "content": respuesta}]
     st.session_state.ayudas += 1
     return respuesta, None

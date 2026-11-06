@@ -127,7 +127,9 @@ def pedir_ayuda(historial, problema, nivel, codigo, consola):
         "problema": texto_problema,
         "codigo": codigo or "(vacío)",
         "consola": consola,
-        "historial": historial[-config.MAX_HISTORIAL:],   # sólo los últimos mensajes
+        # Sólo los últimos mensajes, y sólo rol y contenido (la interfaz guarda más datos)
+        "historial": [{"role": m["role"], "content": m["content"]}
+                      for m in historial[-config.MAX_HISTORIAL:]],
     })
 
 

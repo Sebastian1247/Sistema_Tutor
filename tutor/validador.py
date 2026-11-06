@@ -1,12 +1,16 @@
-"""Valida un problema generado por el LLM ejecutando su solución de referencia.
+"""Valida lo que produce el LLM ejecutándolo, en lugar de confiar en él.
 
-Idea: el LLM puede equivocarse al calcular "de cabeza" las salidas esperadas
-(ej. 48392 -> dijo 2 dígitos pares, son 3). Ejecutar la solución es más
-confiable que su aritmética mental, así que:
-  - si la solución no compila o truena  -> el problema se descarta
-  - si la solución da otra salida       -> se corrige la salida esperada
-Si el problema se descarta, generar_problema_validado pide otro.
+1. Problemas generados: el LLM puede equivocarse al calcular "de cabeza" las
+   salidas esperadas (ej. 48392 -> dijo 2 dígitos pares, son 3), así que:
+     - si la solución no compila o truena  -> el problema se descarta
+     - si la solución da otra salida       -> se corrige la salida esperada
+   Si el problema se descarta, generar_problema_validado pide otro.
+2. Respuestas del tutor: si el código que muestra pasa los casos de prueba,
+   reveló la solución; respuesta_segura la bloquea.
 """
+
+import ast
+import re
 
 from tutor import config, ejecutor
 
@@ -68,3 +72,82 @@ def generar_problema_validado(nivel, titulos_previos, generar,
         except ValueError as error:
             ultimo_error = error
     raise ValueError(f"no se obtuvo un problema válido en {intentos} intentos ({ultimo_error})")
+
+
+# =====================================================================
+# Respuestas del tutor: detectar y bloquear la fuga de la solución
+# =====================================================================
+
+PISTA_FIJA = ("No puedo darte la solución, pero sí ayudarte a llegar a ella. Divide el "
+              "problema en pasos: ¿qué datos lees, qué debes calcular con ellos y qué "
+              "imprimes al final?\n\n**Próximo paso:** escribe en el editor sólo la lectura "
+              "de los datos y pruébala con Ejecutar.")
+
+AVISO_REGENERAR = ("[Aviso del sistema] Tu respuesta anterior incluía código que resuelve el "
+                   "problema completo y eso no está permitido. Responde de nuevo a la última "
+                   "pregunta del estudiante SÓLO con una pista o una pregunta guía, sin código "
+                   "que resuelva el problema.")
+
+
+def extraer_codigo(texto):
+    """Bloques de código Markdown (```python ... ```) de una respuesta."""
+    return [b.strip() for b in re.findall(r"```[^\n`]*\n(.*?)```", texto, re.DOTALL) if b.strip()]
+
+
+def _sin_definiciones(codigo, nombres):
+    """El código del estudiante sin las funciones o clases que el tutor redefine."""
+    try:
+        arbol = ast.parse(codigo)
+    except SyntaxError:
+        return None
+    arbol.body = [n for n in arbol.body
+                  if not (isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in nombres)]
+    return ast.unparse(arbol)
+
+
+def _candidatos(bloques, codigo_estudiante):
+    """Programas a probar: cada bloque, todos juntos y cada bloque completado con el
+    código del estudiante (caso "sólo completa el cuerpo de la función")."""
+    candidatos = list(bloques)
+    if len(bloques) > 1:
+        candidatos.append("\n\n".join(bloques))
+    for bloque in bloques:
+        try:
+            nombres = {n.name for n in ast.parse(bloque).body
+                       if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+        except SyntaxError:
+            continue
+        resto = _sin_definiciones(codigo_estudiante, nombres) if nombres else None
+        if resto:
+            candidatos.append(bloque + "\n\n" + resto)
+    return candidatos
+
+
+def revela_solucion(respuesta, problema, codigo_estudiante=""):
+    """True si algún código de la respuesta pasa TODOS los casos de prueba."""
+    for candidato in _candidatos(extraer_codigo(respuesta), codigo_estudiante):
+        if not ejecutor.compilar(candidato)[0]:
+            continue
+        if all(r["paso"] for r in ejecutor.evaluar_pruebas(candidato, problema.casos_prueba)):
+            return True
+    return False
+
+
+def respuesta_segura(pedir, historial, problema, nivel, codigo, consola):
+    """Filtro en tiempo real. pedir(historial, problema, nivel, codigo, consola) -> texto
+    se recibe por inyección, como generar.
+    Regresa (respuesta final, respuesta original, estado), con estado:
+    'ok' | 'regenerada' (se pidió otra sólo con pista) | 'reemplazada' (pista fija)."""
+    original = pedir(historial, problema, nivel, codigo, consola)
+    if not revela_solucion(original, problema, codigo):
+        return original, original, "ok"
+
+    historial_aviso = historial + [{"role": "assistant", "content": original},
+                                   {"role": "user", "content": AVISO_REGENERAR}]
+    try:
+        nueva = pedir(historial_aviso, problema, nivel, codigo, consola)
+    except Exception:
+        nueva = None
+    if nueva and not revela_solucion(nueva, problema, codigo):
+        return nueva, original, "regenerada"
+    return PISTA_FIJA, original, "reemplazada"

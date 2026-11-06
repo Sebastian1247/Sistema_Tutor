@@ -1,7 +1,7 @@
 import pytest
 
 from tutor import llm, validador
-from tests.conftest import crear_problema
+from tests.conftest import SOLUCION_PARES, crear_problema
 
 
 def test_problema_correcto_no_requiere_correcciones(problema):
@@ -100,3 +100,62 @@ def test_generacion_se_rinde_despues_de_los_intentos_configurados():
     with pytest.raises(ValueError, match="en 2 intentos"):
         validador.generar_problema_validado("novato", [], generar, intentos=2)
     assert len(generar.llamadas) == 2
+
+
+# --- fuga de la solución en las respuestas del tutor ---
+
+FUGA = f"Aquí tienes:\n\n```python\n{SOLUCION_PARES}```\n"
+PISTA = "Recorre cada dígito con un for. ¿Cómo sabes si un dígito es par?"
+EJEMPLO_OTRO_CONTEXTO = "Por ejemplo:\n\n```python\nfor letra in 'hola':\n    print(letra)\n```"
+
+
+def test_extraer_bloques_de_codigo():
+    texto = "a\n```python\nx = 1\n```\nb\n```\ny = 2\n```"
+    assert validador.extraer_codigo(texto) == ["x = 1", "y = 2"]
+
+
+def test_detecta_la_solucion_completa(problema):
+    assert validador.revela_solucion(FUGA, problema)
+
+
+def test_una_pista_o_un_ejemplo_de_otro_contexto_no_es_fuga(problema):
+    assert not validador.revela_solucion(PISTA, problema)
+    assert not validador.revela_solucion(EJEMPLO_OTRO_CONTEXTO, problema)
+
+
+def test_detecta_cuando_solo_completa_el_cuerpo_de_la_funcion():
+    # "Sólo completa el cuerpo": el bloque no imprime nada por sí solo, pero junto
+    # con el código del estudiante resuelve el problema
+    estudiante = "def pares(n):\n    pass\n\n\nprint(pares(input().strip()))\n"
+    problema = crear_problema(solucion="def pares(n):\n    return sum(int(d) % 2 == 0 for d in n)"
+                                       "\n\n\nprint(pares(input().strip()))\n")
+    cuerpo = "```python\ndef pares(n):\n    return sum(1 for d in n if int(d) % 2 == 0)\n```"
+    assert validador.revela_solucion(cuerpo, problema, estudiante)
+    assert not validador.revela_solucion(cuerpo, problema, "")
+
+
+class TutorFalso:
+    def __init__(self, respuestas):
+        self.respuestas, self.historiales = list(respuestas), []
+
+    def __call__(self, historial, problema, nivel, codigo, consola):
+        self.historiales.append(historial)
+        return self.respuestas.pop(0)
+
+
+def test_filtro_deja_pasar_una_pista(problema):
+    tutor = TutorFalso([PISTA])
+    assert validador.respuesta_segura(tutor, [], problema, "novato", "", "") == (PISTA, PISTA, "ok")
+
+
+def test_filtro_regenera_si_la_respuesta_revela_la_solucion(problema):
+    tutor = TutorFalso([FUGA, PISTA])
+    final, original, estado = validador.respuesta_segura(tutor, [], problema, "novato", "", "")
+    assert (final, original, estado) == (PISTA, FUGA, "regenerada")
+    assert tutor.historiales[1][-1]["content"] == validador.AVISO_REGENERAR
+
+
+def test_filtro_usa_la_pista_fija_si_vuelve_a_revelarla(problema):
+    tutor = TutorFalso([FUGA, FUGA])
+    final, _, estado = validador.respuesta_segura(tutor, [], problema, "novato", "", "")
+    assert (final, estado) == (validador.PISTA_FIJA, "reemplazada")
