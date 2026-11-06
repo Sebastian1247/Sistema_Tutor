@@ -1,8 +1,7 @@
-"""Controlador de la interfaz: estado de la sesión y callbacks de los botones.
+"""Controlador de la interfaz: estado de la sesión y acciones del estudiante.
 
-Los callbacks se ejecutan antes de redibujar la página. Son adaptadores
-delgados: leen st.session_state, llaman a la lógica (sesion, validador, llm)
-y guardan el resultado. Las reglas de negocio no viven aquí.
+Son adaptadores delgados: leen st.session_state, llaman a la lógica (sesion,
+validador, llm) y guardan el resultado. Las reglas de negocio no viven aquí.
 """
 
 import time
@@ -11,7 +10,7 @@ import streamlit as st
 
 from tutor import llm, sesion, validador
 
-CONSOLA_INICIAL = "Aquí aparecerá la salida de la ejecución del código."
+CONSOLA_INICIAL = "Aquí aparecerá la salida de tu programa."
 
 MENSAJE_CUOTA_PROBLEMA = ("Se alcanzó el límite del plan gratuito de Groq. "
                           "Espera un minuto e intenta de nuevo; si persiste, "
@@ -28,12 +27,15 @@ VALORES_INICIALES = {
     "entrada": "",
     "consola": CONSOLA_INICIAL,
     "consola_ok": None,
+    "consola_etapa": None,      # compilacion | ejecucion | entrega
     "nivel": "novato",
+    "nivel_sugerido": None,     # lo que decidió el sistema difuso
     "problema": None,
     "nivel_problema": None,
     "id_problema": 0,
     "titulos_previos": [],
-    "error_llm": None,
+    "generando": False,         # se pidió un problema y falta generarlo
+    "error_llm": None,          # {"mensaje": para el estudiante, "detalle": técnico}
     "chat": [],
     "correcciones": [],         # salidas del LLM corregidas por el validador
     "resultados_pruebas": None, # resultado de Entregar
@@ -66,6 +68,7 @@ def _reiniciar_problema(problema, correcciones, nivel):
     estado.entrada = problema.ejemplo_entrada
     estado.consola = CONSOLA_INICIAL
     estado.consola_ok = None
+    estado.consola_etapa = None
     estado.errores = 0
     estado.ayudas = 0
     estado.chat = []
@@ -81,31 +84,74 @@ def minutos_transcurridos():
 
 
 # =====================================================================
-# Callbacks
+# Generar un problema
 # =====================================================================
 
-def nuevo_problema():
-    nivel = st.session_state.nivel
-    try:
-        with st.spinner(f"Generando y validando un problema de nivel {nivel}..."):
-            problema, correcciones = validador.generar_problema_validado(
-                nivel, st.session_state.titulos_previos, generar=llm.generar_problema)
-    except llm.ErrorCuota:
-        st.session_state.error_llm = MENSAJE_CUOTA_PROBLEMA
-        return
-    except Exception as error:
-        st.session_state.error_llm = f"No se pudo generar el problema: {error}"
-        return
-    _reiniciar_problema(problema, correcciones, nivel)
+def al_pedir_problema():
+    """Callback del botón: sólo marca la petición. La generación se hace al dibujar
+    la página (generar_pendiente) para mostrar el avance en su lugar, no arriba."""
+    st.session_state.generando = True
+    st.session_state.error_llm = None
 
+
+def generar_pendiente(avance):
+    """avance: un st.status donde se informa cada paso. Regresa True si hubo problema."""
+    # Se consume la bandera ANTES de llamar al LLM: si el estudiante interrumpe la
+    # página a la mitad, no se vuelve a gastar una llamada sola.
+    st.session_state.generando = False
+    nivel = st.session_state.nivel
+    intentos = 0
+
+    def generar(nivel, titulos_previos):
+        # Envuelve al generador real para informar el avance: el validador lo recibe
+        # por inyección de dependencias y no se entera de la interfaz.
+        nonlocal intentos
+        intentos += 1
+        reintento = f" (intento {intentos})" if intentos > 1 else ""
+        avance.update(label=f"Pidiendo un problema de nivel {nivel} al LLM{reintento}...")
+        problema = llm.generar_problema(nivel, titulos_previos)
+        avance.update(label=f"Validando la solución de referencia con "
+                            f"{len(problema.casos_prueba)} casos de prueba...")
+        return problema
+
+    try:
+        problema, correcciones = validador.generar_problema_validado(
+            nivel, st.session_state.titulos_previos, generar=generar)
+    except llm.ErrorCuota as error:
+        _error_generacion(MENSAJE_CUOTA_PROBLEMA, error)
+    except llm.ErrorLLM as error:
+        _error_generacion("El servicio del LLM no respondió bien (sin conexión o respuesta "
+                          "inválida). Revisa tu conexión e intenta de nuevo.", error)
+    except ValueError as error:
+        _error_generacion("El LLM generó problemas cuya solución de referencia no funciona, "
+                          "así que se descartaron. Intenta de nuevo.", error)
+    except Exception as error:
+        _error_generacion("Ocurrió un error inesperado al generar el problema.", error)
+    else:
+        _reiniciar_problema(problema, correcciones, nivel)
+        return True
+    return False
+
+
+def _error_generacion(mensaje, error):
+    st.session_state.error_llm = {"mensaje": mensaje,
+                                  "detalle": f"{type(error).__name__}: {error}"}
+
+
+# =====================================================================
+# Compilar, ejecutar, entregar, rendirse
+# =====================================================================
 
 def _mostrar_en_consola(retro):
     st.session_state.consola = retro.mensaje
     st.session_state.consola_ok = retro.ok
+    st.session_state.consola_etapa = retro.etapa
     if retro.resultados_pruebas is not None:
         st.session_state.resultados_pruebas = retro.resultados_pruebas
     if retro.cuenta_error:
         st.session_state.errores += 1
+        st.toast("Se contó un error (+1). Los errores influyen en tu siguiente nivel.",
+                 icon=":material/error:")
 
 
 def al_compilar():
@@ -130,7 +176,7 @@ def al_rendirse():
 
 
 def _finalizar(resuelto):
-    """Aquí entra el sistema difuso."""
+    """Aquí entra el sistema difuso (inferencia Mamdani en sesion.evaluar_desempeno)."""
     st.session_state.fin = time.time()               # detiene el reloj
     resultado = sesion.evaluar_desempeno(
         resuelto,
@@ -145,28 +191,32 @@ def _finalizar(resuelto):
         resultado.fila_historial(st.session_state.problema.titulo,
                                  st.session_state.nivel_problema))
     st.session_state.nivel = resultado.siguiente     # nivel del próximo problema
+    st.session_state.nivel_sugerido = resultado.siguiente
     st.session_state.terminado = True
 
 
-def al_preguntar():
-    pregunta = st.session_state.pregunta.strip()
-    if not pregunta or st.session_state.problema is None:
-        return
+# =====================================================================
+# Chat con el tutor
+# =====================================================================
 
-    st.session_state.chat.append({"role": "user", "content": pregunta})
+def preguntar(pregunta):
+    """Regresa (respuesta, aviso). Sólo un intercambio exitoso entra al historial
+    y cuenta como ayuda: los errores de conexión no contaminan lo que ve el LLM."""
+    historial = st.session_state.chat + [{"role": "user", "content": pregunta}]
     try:
-        with st.spinner("El tutor está pensando..."):
-            respuesta = llm.pedir_ayuda(
-                st.session_state.chat,
-                st.session_state.problema,
-                st.session_state.nivel_problema,
-                st.session_state.codigo,
-                st.session_state.consola,
-            )
-        st.session_state.ayudas += 1
+        respuesta = llm.pedir_ayuda(
+            historial,
+            st.session_state.problema,
+            st.session_state.nivel_problema,
+            st.session_state.codigo,
+            st.session_state.consola,
+        )
     except llm.ErrorCuota:
-        respuesta = MENSAJE_CUOTA_TUTOR
-    except Exception as error:
-        respuesta = f"No pude responder: {error}"
+        return None, MENSAJE_CUOTA_TUTOR
+    except Exception:
+        return None, ("El tutor no pudo responder (sin conexión o error del servicio). "
+                      "Tu pregunta no contó como ayuda; vuelve a escribirla.")
 
-    st.session_state.chat.append({"role": "assistant", "content": respuesta})
+    st.session_state.chat = historial + [{"role": "assistant", "content": respuesta}]
+    st.session_state.ayudas += 1
+    return respuesta, None

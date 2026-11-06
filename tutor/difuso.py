@@ -150,6 +150,13 @@ def reglas_activadas(t, e, a):
     return sorted(activas, key=lambda r: r["fuerza"], reverse=True)
 
 
+def zonas_nivel():
+    """Intervalo de la salida donde cada nivel tiene pertenencia > 0 (para la interfaz)."""
+    u = nivel.universe
+    return {nombre: (float(u[termino.mf > 0].min()), float(u[termino.mf > 0].max()))
+            for nombre, termino in nivel.terms.items()}
+
+
 def figura_salida(t, e, a):
     """Conjunto agregado de la salida y el centroide, como figura de matplotlib.
     La interfaz recibe la figura y no necesita saber que el motor es skfuzzy."""

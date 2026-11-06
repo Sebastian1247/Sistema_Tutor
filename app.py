@@ -1,7 +1,7 @@
 """Punto de entrada:  streamlit run app.py
 
 Sólo acomoda las regiones de la página. La lógica está en el paquete tutor/;
-el estado, los callbacks y las vistas en tutor/ui/.
+el estado, las acciones y las vistas en tutor/ui/.
 """
 
 import matplotlib
@@ -18,22 +18,17 @@ vistas.barra_lateral()
 
 st.title(":snake: Tutor de programación en Python")
 vistas.metricas()
+vistas.generacion()                      # avance o error al generar un problema
+vistas.resultado()                       # decisión del sistema difuso, al terminar
 
 p = st.session_state.problema
 bloqueado = p is None or st.session_state.terminado     # sin problema o ya terminado
 
-# --- Fila 1: problema | chatbot ---
-col_problema, col_chat = st.columns([3, 2])
+# En pantallas chicas Streamlit apila las columnas
+col_problema, col_codigo = st.columns([2, 3], gap="medium")
 with col_problema:
-    vistas.problema(p)
-with col_chat:
-    vistas.chat(bloqueado)
+    vistas.problema_y_tutor(p, bloqueado)
+with col_codigo:
+    vistas.editor_y_consola(p, bloqueado)
 
-# --- Fila 2: editor | ejecución ---
-col_editor, col_consola = st.columns([3, 2])
-with col_editor:
-    vistas.editor(p, bloqueado)
-with col_consola:
-    vistas.consola()
-
-vistas.resultado()
+vistas.historial()
